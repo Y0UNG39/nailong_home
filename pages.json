@@ -1,0 +1,63 @@
+{
+  "pages": [
+    {
+      "path": "pages/setup/index",
+      "style": { "navigationBarTitleText": "奶龙的家", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/home/index",
+      "style": { "navigationBarTitleText": "奶龙的家", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800", "enablePullDownRefresh": true }
+    },
+    {
+      "path": "pages/tasks/index",
+      "style": { "navigationBarTitleText": "任务", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/arcade/index",
+      "style": { "navigationBarTitleText": "乐园", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/future/index",
+      "style": { "navigationBarTitleText": "未来", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": { "navigationBarTitleText": "我们", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "奶龙的家",
+    "navigationBarBackgroundColor": "#FFB800",
+    "backgroundColor": "#FFF8E1"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#FFB800",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页", "iconPath": "static/tabbar/home.png", "selectedIconPath": "static/tabbar/home-active.png" },
+      { "pagePath": "pages/tasks/index", "text": "任务", "iconPath": "static/tabbar/tasks.png", "selectedIconPath": "static/tabbar/tasks-active.png" },
+      { "pagePath": "pages/arcade/index", "text": "乐园", "iconPath": "static/tabbar/arcade.png", "selectedIconPath": "static/tabbar/arcade-active.png" },
+      { "pagePath": "pages/future/index", "text": "未来", "iconPath": "static/tabbar/future.png", "selectedIconPath": "static/tabbar/future-active.png" },
+      { "pagePath": "pages/profile/index", "text": "我们", "iconPath": "static/tabbar/profile.png", "selectedIconPath": "static/tabbar/profile-active.png" }
+    ]
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^page-layout": "@/components/page-layout/index.vue",
+      "^plant-status": "@/components/plant-status/index.vue",
+      "^task-card": "@/components/task-card/index.vue",
+      "^coin-display": "@/components/coin-display/index.vue",
+      "^gacha-machine": "@/components/gacha-machine/index.vue",
+      "^shop-item": "@/components/shop-item/index.vue",
+      "^achievement-node": "@/components/achievement-node/index.vue",
+      "^dream-card": "@/components/dream-card/index.vue",
+      "^place-item": "@/components/place-item/index.vue",
+      "^loading-spinner": "@/components/loading-spinner/index.vue",
+      "^empty-state": "@/components/empty-state/index.vue"
+    }
+  }
+}

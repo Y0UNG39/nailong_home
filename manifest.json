@@ -1,0 +1,26 @@
+{
+    "name" : "奶龙的家",
+    "appid" : "__UNI__E102B67",
+    "description" : "专属于两个人的感情养成空间",
+    "versionName" : "2.0.0",
+    "versionCode" : "200",
+    "transformPx" : false,
+    "vueVersion" : "3",
+    "mp-weixin" : {
+        "appid" : "wxa4eb874182e31996",
+        "cloudfunctionRoot" : "cloudfunctions/",
+        "setting" : {
+            "urlCheck" : false,
+            "es6" : true,
+            "postcss" : true,
+            "minified" : true,
+            "enhance" : true,
+            "useMultiFrameRuntime" : true,
+            "useApiHook" : true
+        },
+        "usingComponents" : true
+    },
+    "uniStatistics" : {
+        "enable" : false
+    }
+}
