@@ -6,15 +6,20 @@ exports.main = async (event) => {
   const { coupleId, itemId } = event
   try {
     const i = await db.collection('shop_items').doc(itemId).get()
-    if (!i.data) return { success: false, error: 'item not found' }
-    if (i.data.sold_out || i.data.stock <= 0) return { success: false, error: 'sold out' }
-    const c = await db.collection('couples').doc(coupleId).get()
-    if (!c.data) return { success: false, error: 'couple not found' }
-    if ((c.data.coins || 0) < i.data.price) return { success: false, error: 'insufficient coins' }
-    await db.collection('couples').doc(coupleId).update({ data: { coins: c.data.coins - i.data.price } })
+    if (!i.data) return { success: false, error: '商品不存在' }
+    if (i.data.sold_out || i.data.stock <= 0) return { success: false, error: '已售罄' }
+
+    const uRes = await db.collection('users').where({ _openid: OPENID }).get()
+    if (uRes.data.length === 0) return { success: false, error: 'user not found' }
+    const myCoins = uRes.data[0].coins || 0
+    if (myCoins < i.data.price) return { success: false, error: '硬币不足' }
+
+    const nc = myCoins - i.data.price
+    await db.collection('users').where({ _openid: OPENID }).update({ data: { coins: nc } })
+
     const ns = i.data.stock - 1
     await db.collection('shop_items').doc(itemId).update({ data: { stock: ns, sold_out: ns <= 0 } })
-    await db.collection('coin_logs').add({ data: { coupleId, amount: -i.data.price, type: 'shop', description: '购买: ' + i.data.name, operatorId: OPENID, balanceAfter: c.data.coins - i.data.price, createdAt: db.serverDate() } })
+    await db.collection('coin_logs').add({ data: { coupleId, userId: OPENID, amount: -i.data.price, type: 'shop', description: '购买: ' + i.data.name, operatorId: OPENID, balanceAfter: nc, createdAt: db.serverDate() } })
     await db.collection('coupons').add({ data: { coupleId, ownerId: OPENID, itemId, type: i.data.type, name: i.data.name, description: i.data.description, status: 'unused', createdAt: db.serverDate() } })
     return { success: true }
   } catch (e) { return { success: false, error: e.message } }

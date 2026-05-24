@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 import { VARIETY_MAP, PLANT_STAGES } from '@/utils/constants'
@@ -7,9 +7,12 @@ import { daysBetween } from '@/utils/date'
 
 const store = useAppStore()
 
-const coupleName = ref('我们的小空间')
-const togetherSince = '2025-01-01'
-const togetherDays = computed(() => daysBetween(new Date(), togetherSince))
+const coupleName = ref('我们的空间')
+const togetherSince = ref('2019-05-01')
+const togetherDays = computed(() => {
+  if (!togetherSince.value) return 0
+  return daysBetween(new Date(), togetherSince.value)
+})
 
 const editingName = ref(false)
 const newName = ref('')
@@ -21,33 +24,25 @@ const myAvatarFailed = ref(false)
 const partnerAvatar = ref('')
 const partnerAvatarFailed = ref(false)
 const partnerName = ref('TA')
+const partnerGender = ref('')
+const myGender = ref(store.user?.gender || '')
 
-// 将头像 URL 转为可显示的链接：cloud:// → 临时 https；已是 https:// → 直接用；其余 → 空串回退 emoji
-async function resolveAvatarUrl(url: string): Promise<string> {
-  if (!url) return ''
-  if (url.startsWith('cloud://')) {
-    try {
-      const tmp = await wx.cloud.getTempFileURL({ fileList: [url] })
-      return tmp.fileList?.[0]?.tempFileURL || ''
-    } catch { return '' }
-  }
-  if (url.startsWith('https://')) return url
-  return ''
+function genderEmoji(gender: string) {
+  return gender === 'female' ? '👩' : '🧑'
 }
 
 async function loadAvatars() {
-  const raw = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
-  myAvatar.value = await resolveAvatarUrl(raw)
+  myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
   myAvatarFailed.value = false
 
   if (!store.coupleId) return
   try {
     const res = await wx.cloud.callFunction({ name: 'getPartner', data: { coupleId: store.coupleId } })
     if (res.result.success) {
-      const rawPartner = res.result.partner.avatar || ''
-      partnerAvatar.value = await resolveAvatarUrl(rawPartner)
+      partnerAvatar.value = res.result.partner.avatar || ''
       partnerAvatarFailed.value = false
       partnerName.value = res.result.partner.nickname || 'TA'
+      partnerGender.value = res.result.partner.gender || ''
       store.setPartner(res.result.partner)
     }
   } catch { /* 伴侣还没加入 */ }
@@ -67,12 +62,16 @@ async function onChooseAvatar(e: any) {
     const cloudFileId = upRes.fileID // cloud://xxx 格式，永久有效
 
     myAvatar.value = cloudFileId
-    if (store.user) store.user.avatar = cloudFileId
+    store.updateUser({ avatar: cloudFileId })
     uni.setStorageSync('my_avatar', cloudFileId)
     // 同步到数据库
-    await wx.cloud.callFunction({ name: 'login', data: { avatar: cloudFileId } })
+    const saveRes = await wx.cloud.callFunction({ name: 'updateAvatar', data: { avatar: cloudFileId } })
     uni.hideLoading()
-    uni.showToast({ title: '头像已同步', icon: 'success' })
+    if (saveRes.result?.success) {
+      uni.showToast({ title: '头像已同步', icon: 'success' })
+    } else {
+      uni.showToast({ title: saveRes.result?.error || '同步失败', icon: 'none' })
+    }
   } catch (err: any) {
     uni.hideLoading()
     uni.showToast({ title: '上传失败，请重试', icon: 'none' })
@@ -113,14 +112,40 @@ function onShowSettings() {
 
 onShow(() => {
   loadAvatars()
+  loadCoupleData()
 })
 
-// Mock 券数据
-const coupons = ref([
-  { _id:'1', type:'service', name:'免费按摩5分钟', status:'unused', createdAt:new Date().toISOString() },
-  { _id:'2', type:'physical', name:'一杯奶茶', status:'used', createdAt:new Date(Date.now()-86400000).toISOString(), usedAt:new Date().toISOString() },
-  { _id:'3', type:'privilege', name:'免生气券', status:'unused', createdAt:new Date(Date.now()-172800000).toISOString() },
-])
+async function loadCoupleData() {
+  if (!store.coupleId) return
+
+  // 各个云函数独立加载，一个失败不影响其他
+  wx.cloud.callFunction({ name: 'getCoupleInfo', data: { coupleId: store.coupleId } }).then(res => {
+    if (res.result.success) {
+      coupleName.value = res.result.name || '我们的空间'
+      if (res.result.plant) {
+        plantVariety.value = res.result.plant.variety || 'rose'
+      }
+    }
+  }).catch(() => {})
+
+  wx.cloud.callFunction({ name: 'getCoupons', data: { coupleId: store.coupleId } }).then(res => {
+    if (res.result.success) {
+      coupons.value = res.result.coupons || []
+    }
+  }).catch(() => {})
+
+  wx.cloud.callFunction({ name: 'getCoupleStats', data: { coupleId: store.coupleId } }).then(res => {
+    if (res.result.success) {
+      const s = res.result.stats
+      stats[0].value = String(s.tasks || 0)
+      stats[1].icon = s.plantIcon || '🌱'
+      stats[1].value = s.plantLabel || '种子'
+      stats[2].value = String(s.dreams || 0)
+    }
+  }).catch(() => {})
+}
+
+const coupons = ref<any[]>([])
 
 const showCoupons = ref(false)
 const showSettings = ref(false)
@@ -129,17 +154,56 @@ const filteredCoupons = computed(() => coupons.value.filter(c => c.status === co
 const unusedCount = computed(() => coupons.value.filter(c => c.status === 'unused').length)
 
 function startEditName() { newName.value = coupleName.value; editingName.value = true }
-function saveName() { coupleName.value = newName.value; editingName.value = false; uni.showToast({ title: '已修改', icon: 'success' }) }
-function useCoupon(c: any) { c.status = 'used'; c.usedAt = new Date().toISOString(); uni.showToast({ title: '已使用', icon: 'success' }) }
+async function saveName() {
+  if (!store.coupleId) return
+  try {
+    await wx.cloud.callFunction({ name: 'updateCoupleName', data: { coupleId: store.coupleId, name: newName.value } })
+    coupleName.value = newName.value
+    editingName.value = false
+    uni.showToast({ title: '已修改', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '修改失败', icon: 'none' })
+  }
+}
+async function useCoupon(c: any) {
+  try {
+    await wx.cloud.callFunction({ name: 'shopUseCoupon', data: { couponId: c._id } })
+    c.status = 'used'
+    c.usedAt = new Date().toISOString()
+    uni.showToast({ title: '已使用', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '使用失败', icon: 'none' })
+  }
+}
 
-const stats = [
-  { icon:'✅', value:'126', unit:'次', label:'累计任务' },
-  { icon:'🏆', value:'8', unit:'个', label:'解锁成就' },
-  { icon:PLANT_STAGES[2].icon, value:PLANT_STAGES[2].label, unit:'', label:'植物状态' },
-  { icon:'🎰', value:'23', unit:'次', label:'扭蛋次数' },
-  { icon:'🛒', value:'15', unit:'次', label:'小卖部' },
-  { icon:'⭐', value:'2', unit:'个', label:'梦想完成' },
-]
+async function setGender(g: string) {
+  if (myGender.value === g) return
+  try {
+    await wx.cloud.callFunction({ name: 'login', data: { gender: g } })
+    myGender.value = g
+    store.updateUser({ gender: g })
+    uni.showToast({ title: '已更新', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '更新失败', icon: 'none' })
+  }
+}
+
+async function switchVariety(key: string) {
+  if (key === plantVariety.value || !store.coupleId) return
+  try {
+    await wx.cloud.callFunction({ name: 'updatePlantVariety', data: { coupleId: store.coupleId, variety: key } })
+    plantVariety.value = key
+    uni.showToast({ title: '已切换', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '切换失败', icon: 'none' })
+  }
+}
+
+const stats = reactive([
+  { icon:'✅', value:'0', unit:'次', label:'累计任务' },
+  { icon:'🌱', value:'种子', unit:'', label:'植物状态' },
+  { icon:'⭐', value:'0', unit:'个', label:'梦想完成' },
+])
 </script>
 
 <template>
@@ -150,7 +214,7 @@ const stats = [
         <view class="avatar-block">
           <button open-type="chooseAvatar" @chooseavatar="onChooseAvatar" class="avatar-btn">
             <image v-if="myAvatar && !myAvatarFailed" :src="myAvatar" class="avatar-img" mode="aspectFill" @error="myAvatarFailed = true" />
-            <text v-else class="a-emoji">🧑</text>
+            <text v-else class="a-emoji">{{ genderEmoji(myGender) }}</text>
           </button>
           <text class="a-name">你</text>
         </view>
@@ -158,7 +222,7 @@ const stats = [
         <view class="avatar-block">
           <view class="avatar-circle">
             <image v-if="partnerAvatar && !partnerAvatarFailed" :src="partnerAvatar" class="avatar-img" mode="aspectFill" @error="partnerAvatarFailed = true" />
-            <text v-else class="a-emoji">👩</text>
+            <text v-else class="a-emoji">{{ genderEmoji(partnerGender) }}</text>
           </view>
           <text class="a-name">{{ partnerName }}</text>
         </view>
@@ -219,9 +283,9 @@ const stats = [
             <view class="c-left"><text class="c-icon">{{ c.type==='service'?'🛎️':c.type==='physical'?'🎁':'👑' }}</text></view>
             <view class="c-info">
               <text class="c-name">{{ c.name }}</text>
-              <text class="c-date">{{ c.usedAt ? '已使用' : '有效期至永久' }}</text>
+              <text class="c-date">{{ c.ownerId === store.openid ? '我的' : 'TA的' }} · {{ c.usedAt ? '已使用' : '未使用' }}</text>
             </view>
-            <view v-if="c.status==='unused'" class="use-btn" @tap="useCoupon(c)"><text>使用</text></view>
+            <view v-if="c.status==='unused' && c.ownerId === store.openid" class="use-btn" @tap="useCoupon(c)"><text>使用</text></view>
           </view>
           <empty-state v-if="filteredCoupons.length===0" icon="🎫" text="空空如也" />
         </scroll-view>
@@ -242,6 +306,13 @@ const stats = [
             <input v-else class="set-input" v-model="newName" @blur="saveName" maxlength="20" />
           </view>
           <view class="set-row">
+            <text class="set-label">性别</text>
+            <view class="gender-btns">
+              <view class="g-btn" :class="{ sel: myGender === 'male' }" @tap="setGender('male')">🧑 男</view>
+              <view class="g-btn" :class="{ sel: myGender === 'female' }" @tap="setGender('female')">👩 女</view>
+            </view>
+          </view>
+          <view class="set-row">
             <text class="set-label">邀请码</text>
             <text class="invite-code" v-if="inviteCode && inviteCode !== '暂无' && inviteCode !== '获取失败'" @tap="() => { uni.setClipboardData({ data: inviteCode }); uni.showToast({ title: '已复制', icon: 'success' }) }">{{ inviteCode }} 📋</text>
             <text class="invite-code dim" v-else>{{ inviteCode || '加载中...' }}</text>
@@ -249,7 +320,7 @@ const stats = [
           <view class="set-row">
             <text class="set-label">植物品种</text>
             <view class="variety-grid">
-              <view v-for="(label, key) in VARIETY_MAP" :key="key" class="v-item" :class="{ sel:plantVariety===key }" @tap="plantVariety=key as string; uni.showToast({title:'已切换',icon:'success'})">
+              <view v-for="(label, key) in VARIETY_MAP" :key="key" class="v-item" :class="{ sel:plantVariety===key }" @tap="switchVariety(key as string)">
                 <text>{{ label }}</text>
               </view>
             </view>
@@ -332,6 +403,9 @@ const stats = [
 .invite-code { font-size:32rpx; font-weight:800; color:#FFB800; letter-spacing:4rpx; }
 .invite-code.dim { color:#bbb; font-weight:400; letter-spacing:0; }
 .set-input { font-size:26rpx; border:2rpx solid #FFD54F; border-radius:12rpx; padding:12rpx 16rpx; }
+.gender-btns { display: flex; gap: 16rpx; }
+.g-btn { flex: 1; text-align: center; padding: 16rpx; border-radius: 16rpx; font-size: 26rpx; color: #999; border: 2rpx solid #F0F0F0; background: #FAFAFA; }
+.g-btn.sel { color: #FF9800; border-color: #FF9800; background: #FFF3E0; font-weight: 700; }
 .variety-grid { display:flex; flex-wrap:wrap; gap:12rpx; }
 .v-item { padding:12rpx 24rpx; border-radius:20rpx; font-size:24rpx; color:#999; background:#F5F5F5; }
 .v-item.sel { background:#FFB800; color:#fff; font-weight:600; }

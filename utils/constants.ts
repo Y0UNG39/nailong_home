@@ -14,14 +14,6 @@ export const TASK_TYPE = {
 
 export const GACHA_COST = 2
 
-export const GACHA_POOL = [
-  { type: 'reward', label: '小奖励', weight: 35, icon: '🎁' },
-  { type: 'coins', label: '互动币', weight: 25, icon: '💰' },
-  { type: 'fertilizer', label: '肥料', weight: 20, icon: '🌿' },
-  { type: 'fragment', label: '成就碎片', weight: 15, icon: '🧩' },
-  { type: 'rare', label: '限定卡', weight: 5, icon: '💎' }
-]
-
 export const PLANT_STAGES = [
   { key: 'seedling', label: '幼苗', icon: '🌱', threshold: 25 },
   { key: 'growing', label: '成长', icon: '🌿', threshold: 50 },

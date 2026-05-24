@@ -33,7 +33,7 @@ watch(() => props.coupleId, (val) => { if (val) load() }, { immediate: true })
   <view class="coin-bar" @tap="toggle">
     <view class="coin-left">
       <text class="coin-icon">🪙</text>
-      <text class="coin-label">我们共有</text>
+      <text class="coin-label">我的硬币</text>
       <text class="coin-value">{{ balance }}</text>
       <text class="coin-label">币</text>
     </view>

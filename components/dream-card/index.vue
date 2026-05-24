@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DREAM_CATEGORIES } from '@/utils/constants'
+import { formatDate } from '@/utils/date'
 import { ref, computed } from 'vue'
 
 interface Dream {
@@ -8,10 +9,10 @@ interface Dream {
   creatorNickname?: string
 }
 
-interface Props { dream: Dream; myOpenid?: string }
+interface Props { dream: Dream; myOpenid?: string; showDelete?: boolean }
 
-const props = withDefaults(defineProps<Props>(), { myOpenid: '' })
-const emit = defineEmits<{ tap: [dream: Dream]; like: [dream: Dream] }>()
+const props = withDefaults(defineProps<Props>(), { myOpenid: '', showDelete: false })
+const emit = defineEmits<{ tap: [dream: Dream]; like: [dream: Dream]; delete: [dream: Dream]; complete: [dream: Dream]; edit: [dream: Dream] }>()
 
 const catInfo = computed(() => {
   return DREAM_CATEGORIES.find(c => c.key === props.dream.category) || DREAM_CATEGORIES[0]
@@ -19,9 +20,17 @@ const catInfo = computed(() => {
 
 const isMutual = computed(() => props.dream.likes?.length >= 2)
 const liked = computed(() => props.dream.likes?.includes(props.myOpenid))
+const dreamTime = computed(() => {
+  if (props.dream.status === 'completed' && props.dream.completedAt) return '完成于 ' + formatDate(props.dream.completedAt)
+  if (props.dream.createdAt) return '添加于 ' + formatDate(props.dream.createdAt)
+  return ''
+})
 
 function onLike() { emit('like', props.dream) }
 function onTap() { emit('tap', props.dream) }
+function onDelete() { emit('delete', props.dream) }
+function onEdit() { emit('edit', props.dream) }
+function onToggleComplete() { emit('complete', props.dream) }
 </script>
 
 <template>
@@ -29,9 +38,11 @@ function onTap() { emit('tap', props.dream) }
     <view class="img-area">
       <image class="img" v-if="dream.image" :src="dream.image" mode="aspectFill" />
       <text class="img-placeholder" v-else>{{ catInfo.icon }}</text>
-      <view class="status-badge" :class="dream.status">
+      <view class="status-badge" :class="dream.status" @tap.stop="onToggleComplete">
         <text>{{ dream.status === 'completed' ? '✅' : '⭐' }}</text>
       </view>
+      <view class="del-btn" v-if="showDelete && dream.status !== 'completed'" @tap.stop="onEdit"><text>✎</text></view>
+      <view class="del-btn" :class="{ edit: showDelete && dream.status !== 'completed' }" v-if="showDelete" @tap.stop="onDelete"><text>✕</text></view>
     </view>
     <view class="body">
       <view class="title-row">
@@ -47,6 +58,7 @@ function onTap() { emit('tap', props.dream) }
           <text class="like-count">{{ dream.likes?.length || 0 }}</text>
         </view>
       </view>
+      <text class="dream-time" v-if="dreamTime">{{ dreamTime }}</text>
     </view>
   </view>
 </template>
@@ -76,6 +88,13 @@ function onTap() { emit('tap', props.dream) }
 }
 .status-badge.dreaming { background: rgba(255,215,0,0.25); }
 .status-badge.completed { background: rgba(76,175,80,0.25); }
+.del-btn {
+  position: absolute; top: 10rpx; left: 10rpx;
+  width: 40rpx; height: 40rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;
+  font-size: 22rpx; color: #fff;
+}
+.del-btn.edit { left: 58rpx; background: rgba(33,150,243,0.7); }
 .body { padding: 18rpx 20rpx; }
 .title-row { display: flex; align-items: center; margin-bottom: 12rpx; }
 .title { font-size: 28rpx; font-weight: 700; color: #333; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -88,4 +107,5 @@ function onTap() { emit('tap', props.dream) }
 .cat-tag { padding: 4rpx 14rpx; border-radius: 12rpx; font-size: 22rpx; font-weight: 600; }
 .like-btn { display: flex; align-items: center; gap: 4rpx; }
 .like-count { font-size: 22rpx; color: #bbb; }
+.dream-time { font-size: 20rpx; color: #ccc; margin-top: 8rpx; display: block; }
 </style>

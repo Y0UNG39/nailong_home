@@ -18,7 +18,7 @@ exports.main = async (event) => {
     if (!uRes.data.length) return { success: false, error: 'partner user not found' }
 
     const p = uRes.data[0]
-    return { success: true, partner: { nickname: p.nickname || 'TA', avatar: p.avatar || '' } }
+    return { success: true, partner: { nickname: p.nickname || 'TA', avatar: p.avatar || '', gender: p.gender || '' } }
   } catch (e) {
     return { success: false, error: e.message }
   }

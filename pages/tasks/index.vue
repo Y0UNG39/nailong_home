@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { TASK_DIFFICULTY } from '@/utils/constants'
 import { useAppStore } from '@/store/index'
 
@@ -8,40 +9,142 @@ const activeTab = ref(0)
 const tabs = ['对方给我的', '我发布的', '历史记录']
 const showCreate = ref(false)
 const formData = ref({ title: '', description: '', difficulty: 'EASY', type: 'ONCE' })
+const submitting = ref(false)
 
-interface Task { _id: string; title: string; description: string; difficulty: 'EASY'|'MEDIUM'|'HARD'; type: 'ONCE'|'DAILY'|'WEEKLY'; coins: number; status: 'pending'|'submitted'|'approved'|'rejected'|'expired'; creatorNickname: string; assigneeNickname: string; createdAt: string }
+interface Task { _id: string; title: string; description: string; difficulty: 'EASY'|'MEDIUM'|'HARD'; type: 'ONCE'|'DAILY'|'WEEKLY'; coins: number; status: 'pending'|'submitted'|'approved'|'rejected'|'expired'; creatorNickname: string; assigneeNickname: string; createdAt: string; isMine: boolean }
 
-const MOCK: Task[] = [
-  { _id: '1', title: '今天11点前睡', description: '', difficulty: 'MEDIUM', type: 'DAILY', coins: 3, status: 'pending', creatorNickname: 'TA', assigneeNickname: '你', createdAt: new Date().toISOString() },
-  { _id: '2', title: '喝8杯水', description: '多喝水对身体好', difficulty: 'EASY', type: 'DAILY', coins: 1, status: 'submitted', creatorNickname: 'TA', assigneeNickname: '你', createdAt: new Date().toISOString() },
-  { _id: '3', title: '去跑步30分钟', description: '一起运动', difficulty: 'HARD', type: 'WEEKLY', coins: 5, status: 'approved', creatorNickname: '你', assigneeNickname: 'TA', createdAt: new Date().toISOString() },
-  { _id: '4', title: '给TA做顿饭', description: '周末大厨上线', difficulty: 'HARD', type: 'ONCE', coins: 5, status: 'pending', creatorNickname: '你', assigneeNickname: '你', createdAt: new Date().toISOString() },
-  { _id: '5', title: '看一本书', description: '这个月读完这本书', difficulty: 'MEDIUM', type: 'WEEKLY', coins: 3, status: 'rejected', creatorNickname: 'TA', assigneeNickname: '你', createdAt: new Date().toISOString() }
-]
+const tasks = ref<Task[]>([])
+const loading = ref(false)
 
-const filterTasks = computed(() => {
-  if (activeTab.value === 0) return MOCK.filter(t => t.assigneeNickname === '你')
-  if (activeTab.value === 1) return MOCK.filter(t => t.creatorNickname === '你')
-  return MOCK.filter(t => t.status === 'approved' || t.status === 'expired')
-})
-
-function onTaskTap(task: Task) { /* TODO */ }
-function onTaskAction(task: Task, action: string) {
-  if (action === 'checkin') {
-    uni.showToast({ title: '打卡成功(模拟)', icon: 'success' })
+async function loadTasks() {
+  if (!store.coupleId) return
+  loading.value = true
+  try {
+    const res = await wx.cloud.callFunction({ name: 'getTasks', data: { coupleId: store.coupleId } })
+    if (res.result.success) {
+      tasks.value = res.result.tasks || []
+    }
+  } catch (e) {
+    console.error('loadTasks', e)
+  } finally {
+    loading.value = false
   }
 }
 
-function submitCreate() {
+const filterTasks = computed(() => {
+  if (activeTab.value === 0) return tasks.value.filter(t => !t.isMine && (t.status === 'pending' || t.status === 'submitted' || t.status === 'rejected'))
+  if (activeTab.value === 1) return tasks.value.filter(t => t.isMine && (t.status === 'pending' || t.status === 'submitted' || t.status === 'rejected'))
+  return tasks.value.filter(t => t.status === 'approved' || t.status === 'expired')
+})
+
+function onTaskTap(task: Task) {
+  // 发布者点击待审核任务 → 弹出审批选项
+  if (task.isMine && task.status === 'submitted') {
+    uni.showActionSheet({
+      itemList: ['通过', '退回'],
+      success: async (res) => {
+        const approved = res.tapIndex === 0
+        try {
+          const r = await wx.cloud.callFunction({ name: 'approveTask', data: { taskId: task._id, approved } })
+          if (r.result.success && approved) {
+            await wx.cloud.callFunction({ name: 'coinChange', data: { coupleId: store.coupleId, amount: task.coins, type: 'task', description: `任务完成: ${task.title}` } })
+          }
+          uni.showToast({ title: approved ? '已通过' : '已退回', icon: 'success' })
+          loadTasks()
+        } catch (e: any) {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        }
+      }
+    })
+  }
+}
+
+async function onTaskAction(task: Task, action: string) {
+  if (action === 'checkin' || action === 'recheckin') {
+    try {
+      await wx.cloud.callFunction({ name: 'completeTask', data: { taskId: task._id } })
+      uni.showToast({ title: '已提交', icon: 'success' })
+      loadTasks()
+    } catch (e: any) {
+      uni.showToast({ title: '提交失败', icon: 'none' })
+    }
+  }
+  if (action === 'review') {
+    uni.showActionSheet({
+      itemList: ['通过', '退回'],
+      success: async (res) => {
+        const approved = res.tapIndex === 0
+        try {
+          await wx.cloud.callFunction({ name: 'approveTask', data: { taskId: task._id, approved } })
+          if (approved) {
+            await wx.cloud.callFunction({ name: 'coinChange', data: { coupleId: store.coupleId, amount: task.coins, type: 'task', description: `任务完成: ${task.title}` } })
+          }
+          uni.showToast({ title: approved ? '已通过' : '已退回', icon: 'success' })
+          loadTasks()
+        } catch {
+          uni.showToast({ title: '操作失败', icon: 'none' })
+        }
+      }
+    })
+  }
+}
+
+async function onTaskDelete(task: Task) {
+  uni.showModal({
+    title: '删除任务',
+    content: '确定删除「' + task.title + '」吗？',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await wx.cloud.callFunction({ name: 'deleteTask', data: { taskId: task._id } })
+        uni.showToast({ title: '已删除', icon: 'success' })
+        loadTasks()
+      } catch {
+        uni.showToast({ title: '删除失败', icon: 'none' })
+      }
+    }
+  })
+}
+
+async function submitCreate() {
   if (!formData.value.title.trim()) {
     uni.showToast({ title: '请输入任务标题', icon: 'none' })
     return
   }
-  const diff = TASK_DIFFICULTY[formData.value.difficulty as keyof typeof TASK_DIFFICULTY]
-  uni.showToast({ title: `任务已发布！奖励${diff.coins}币`, icon: 'success' })
-  showCreate.value = false
-  formData.value = { title: '', description: '', difficulty: 'EASY', type: 'ONCE' }
+  if (!store.coupleId) {
+    uni.showToast({ title: '请先创建空间', icon: 'none' })
+    return
+  }
+  submitting.value = true
+  try {
+    const res = await wx.cloud.callFunction({
+      name: 'createTask',
+      data: {
+        coupleId: store.coupleId,
+        title: formData.value.title.trim(),
+        description: formData.value.description.trim(),
+        difficulty: formData.value.difficulty,
+        type: formData.value.type
+      }
+    })
+    if (res.result.success) {
+      uni.showToast({ title: `已发布！奖励${res.result.coins}币`, icon: 'success' })
+      showCreate.value = false
+      formData.value = { title: '', description: '', difficulty: 'EASY', type: 'ONCE' }
+      loadTasks()
+    } else {
+      uni.showToast({ title: res.result.error || '发布失败', icon: 'none' })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: '发布失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
+
+onShow(() => {
+  loadTasks()
+})
 </script>
 
 <template>
@@ -55,8 +158,9 @@ function submitCreate() {
 
     <!-- 任务列表 -->
     <scroll-view class="task-list" scroll-y>
-      <task-card v-for="t in filterTasks" :key="t._id" :task="t" @tap="onTaskTap" @action="onTaskAction" />
-      <empty-state v-if="filterTasks.length === 0" icon="📋" text="暂无任务" />
+      <loading-spinner v-if="loading" text="加载中..." />
+      <task-card v-for="t in filterTasks" :key="t._id" :task="t" :isMine="t.isMine" @tap="onTaskTap" @action="onTaskAction" @delete="onTaskDelete" />
+      <empty-state v-if="!loading && filterTasks.length === 0" icon="📋" text="暂无任务" />
     </scroll-view>
 
     <!-- 发布按钮 -->
@@ -96,7 +200,7 @@ function submitCreate() {
           </view>
         </scroll-view>
         <view class="modal-footer">
-          <view class="submit-btn" @tap="submitCreate"><text>发布任务</text></view>
+          <view class="submit-btn" :class="{ disabled: submitting }" @tap="!submitting && submitCreate()"><text>{{ submitting ? '发布中...' : '发布任务' }}</text></view>
         </view>
       </view>
     </view>
@@ -130,4 +234,5 @@ function submitCreate() {
 .seg.sel { color:#FFB800; border-color:#FFB800; background:#FFF8E1; font-weight:700; }
 .modal-footer { padding:16rpx 32rpx 32rpx; padding-bottom:calc(32rpx + env(safe-area-inset-bottom)); border-top:1rpx solid #F0F0F0; }
 .submit-btn { width:100%; height:88rpx; line-height:88rpx; text-align:center; background:linear-gradient(135deg,#FFB800,#FFCC00); border-radius:44rpx; font-size:32rpx; font-weight:700; color:#fff; }
+.submit-btn.disabled { opacity:0.5; pointer-events:none; }
 </style>

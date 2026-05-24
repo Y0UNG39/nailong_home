@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 const typeCfg: Record<string, { label: string; color: string; icon: string }> = {
   service: { label: '服务券', color: '#2196F3', icon: '🛎️' },
   physical: { label: '实物券', color: '#FF9800', icon: '🎁' },
@@ -12,14 +14,16 @@ interface Item {
   creatorNickname?: string
 }
 
-interface Props { item: Item; showPurchase?: boolean }
-const props = withDefaults(defineProps<Props>(), { showPurchase: true })
-const emit = defineEmits<{ purchase: [item: Item] }>()
+interface Props { item: Item; showPurchase?: boolean; showDelete?: boolean }
+const props = withDefaults(defineProps<Props>(), { showPurchase: true, showDelete: false })
+const emit = defineEmits<{ purchase: [item: Item]; delete: [item: Item]; edit: [item: Item] }>()
 
 const cfg = computed(() => typeCfg[props.item.type] || typeCfg.service)
 const soldOut = computed(() => props.item.sold_out || props.item.stock <= 0)
 
 function onPurchase() { emit('purchase', props.item) }
+function onDelete() { emit('delete', props.item) }
+function onEdit() { emit('edit', props.item) }
 </script>
 
 <template>
@@ -29,6 +33,8 @@ function onPurchase() { emit('purchase', props.item) }
       <view class="type-tag" :style="{ background: cfg.color }">
         <text>{{ cfg.label }}</text>
       </view>
+      <view class="del-btn" v-if="showDelete" @tap.stop="onEdit"><text>✎</text></view>
+      <view class="del-btn edit" v-if="showDelete" @tap.stop="onDelete"><text>✕</text></view>
     </view>
     <view class="body">
       <text class="name">{{ item.name }}</text>
@@ -44,7 +50,6 @@ function onPurchase() { emit('purchase', props.item) }
       <view class="buy-btn" v-if="showPurchase && !soldOut" @tap="onPurchase">
         <text>立即购买</text>
       </view>
-      <view class="seller" v-if="item.creatorNickname">by {{ item.creatorNickname }}</view>
     </view>
     <view class="sold-overlay" v-if="soldOut"><text>已售罄</text></view>
   </view>
@@ -72,6 +77,13 @@ function onPurchase() { emit('purchase', props.item) }
   position: absolute; top: 14rpx; left: 14rpx;
   padding: 4rpx 14rpx; border-radius: 14rpx; font-size: 20rpx; color: #fff; font-weight: 600;
 }
+.del-btn {
+  position: absolute; top: 10rpx; right: 10rpx;
+  width: 40rpx; height: 40rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;
+  font-size: 22rpx; color: #fff;
+}
+.del-btn.edit { right: 58rpx; background: rgba(33,150,243,0.7); }
 .body { padding: 18rpx 20rpx; }
 .name { font-size: 30rpx; font-weight: 700; color: #333; }
 .desc { font-size: 24rpx; color: #999; margin-top: 6rpx; display: block; }
@@ -87,7 +99,6 @@ function onPurchase() { emit('purchase', props.item) }
   border-radius: 24rpx; font-size: 26rpx; font-weight: 700; color: #fff;
   box-shadow: 0 4rpx 14rpx rgba(255,184,0,0.25);
 }
-.seller { font-size: 20rpx; color: #ddd; margin-top: 10rpx; }
 .sold-overlay {
   position: absolute; inset: 0;
   background: rgba(255,255,255,0.4); backdrop-filter: blur(2rpx);

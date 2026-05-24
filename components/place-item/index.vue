@@ -11,10 +11,11 @@ interface Props {
   shaker?: boolean
   matched?: boolean
   myStatus?: 'want' | 'skip' | 'visited'
+  showDelete?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { shaker: false, matched: false, myStatus: 'want' })
-const emit = defineEmits<{ shakeNext: []; statusChange: [status: string]; addToDream: [] }>()
+const props = withDefaults(defineProps<Props>(), { shaker: false, matched: false, myStatus: 'want', showDelete: false })
+const emit = defineEmits<{ shakeNext: []; statusChange: [status: string]; addToDream: []; delete: [] }>()
 
 const catInfo = computed(() => {
   return PLACE_CATEGORIES.find(c => c.key === props.place?.category) || PLACE_CATEGORIES[4]
@@ -45,6 +46,7 @@ const curStatus = computed(() => statusCfg[props.myStatus] || statusCfg.want)
       </view>
       <view class="p-status" :style="{ color: curStatus.color, background: curStatus.color + '12' }">
         <text>{{ curStatus.label }}</text>
+        <view class="p-del" v-if="showDelete" @tap.stop="emit('delete')"><text>✕</text></view>
       </view>
     </view>
     <text class="p-note" v-if="place?.note">{{ place.note }}</text>
@@ -85,7 +87,13 @@ const curStatus = computed(() => statusCfg[props.myStatus] || statusCfg.want)
 .p-tags { display: flex; gap: 8rpx; margin-top: 6rpx; }
 .p-cat { padding: 3rpx 12rpx; border-radius: 10rpx; font-size: 20rpx; font-weight: 600; }
 .p-source { padding: 3rpx 12rpx; border-radius: 10rpx; font-size: 20rpx; color: #FFB800; background: rgba(255,184,0,0.1); font-weight: 600; }
-.p-status { padding: 6rpx 18rpx; border-radius: 16rpx; font-size: 22rpx; font-weight: 700; flex-shrink: 0; margin-left: 10rpx; }
+.p-status { padding: 6rpx 18rpx; border-radius: 16rpx; font-size: 22rpx; font-weight: 700; flex-shrink: 0; margin-left: 10rpx; position: relative; }
+.p-del {
+  position: absolute; top: -12rpx; right: -8rpx;
+  width: 36rpx; height: 36rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;
+  font-size: 20rpx; color: #fff;
+}
 .p-note { font-size: 24rpx; color: #999; margin-top: 10rpx; }
 .matched-bar {
   margin-top: 10rpx; padding: 12rpx 16rpx; border-radius: 14rpx;

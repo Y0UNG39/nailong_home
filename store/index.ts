@@ -33,6 +33,12 @@ export const useAppStore = defineStore('app', () => {
     partner.value = p
   }
 
+  function updateUser(data: Record<string, any>) {
+    if (user.value) {
+      user.value = { ...user.value, ...data }
+    }
+  }
+
   function setBalance(b: number) {
     balance.value = b
   }
@@ -66,6 +72,6 @@ export const useAppStore = defineStore('app', () => {
   return {
     openid, coupleId, inviteCode, user, isNew, balance, partner,
     isPaired, loggedIn,
-    setLoginData, setCouple, setInviteCode, loadInviteCodeFromStorage, setPartner, setBalance, addBalance, logout
+    setLoginData, setCouple, setInviteCode, loadInviteCodeFromStorage, setPartner, updateUser, setBalance, addBalance, logout
   }
 })
