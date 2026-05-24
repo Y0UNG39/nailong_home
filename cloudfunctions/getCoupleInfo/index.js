@@ -2,12 +2,6 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-function todayStr() {
-  const now = new Date()
-  const bj = new Date(now.getTime() + 8 * 3600000)
-  return bj.toISOString().split('T')[0]
-}
-
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   const { coupleId } = event
@@ -23,15 +17,8 @@ exports.main = async (event) => {
       await db.collection('couples').doc(coupleId).update({ data: { inviteCode } })
     }
 
-    // 当前用户硬币
     const uRes = await db.collection('users').where({ _openid: OPENID }).get()
     const myCoins = uRes.data[0]?.coins || 0
-
-    // 检查当前用户今天是否已手动浇水
-    const td = todayStr()
-    const waterCnt = await db.collection('plant_logs')
-      .where({ coupleId, eventType: 'water', source: 'manual', operatorId: OPENID, waterDate: td })
-      .count()
 
     return {
       success: true,
@@ -39,8 +26,6 @@ exports.main = async (event) => {
       inviteCode,
       memberCount: (res.data.members || []).length,
       coins: myCoins,
-      plant: res.data.plant,
-      wateredToday: waterCnt.total > 0,
       createdAt: res.data.createdAt || ''
     }
   } catch (e) {

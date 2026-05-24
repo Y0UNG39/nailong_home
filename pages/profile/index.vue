@@ -2,7 +2,6 @@
 import { ref, reactive, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
-import { VARIETY_MAP, PLANT_STAGES } from '@/utils/constants'
 import { daysBetween } from '@/utils/date'
 
 const store = useAppStore()
@@ -16,7 +15,6 @@ const togetherDays = computed(() => {
 
 const editingName = ref(false)
 const newName = ref('')
-const plantVariety = ref('rose')
 const inviteCode = ref('')
 
 const myAvatar = ref('')
@@ -31,40 +29,64 @@ function genderEmoji(gender: string) {
   return gender === 'female' ? '👩' : '🧑'
 }
 
-async function loadAvatars() {
-  myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
-  myAvatarFailed.value = false
+onShow(() => loadProfileData())
 
+async function loadProfileData() {
   if (!store.coupleId) return
   try {
-    const res = await wx.cloud.callFunction({ name: 'getPartner', data: { coupleId: store.coupleId } })
-    if (res.result.success) {
+    const res = await wx.cloud.callFunction({ name: 'getProfileData', data: { coupleId: store.coupleId } })
+    if (!res.result.success) return
+
+    // 情侣信息
+    coupleName.value = res.result.name || '我们的空间'
+
+    // 邀请码
+    const code = res.result.inviteCode
+    if (code) {
+      inviteCode.value = code
+      store.setInviteCode(code)
+    }
+
+    // 硬币
+    if (res.result.coins != null) store.setBalance(res.result.coins)
+
+    // 对方头像
+    if (res.result.partner) {
       partnerAvatar.value = res.result.partner.avatar || ''
       partnerAvatarFailed.value = false
       partnerName.value = res.result.partner.nickname || 'TA'
       partnerGender.value = res.result.partner.gender || ''
       store.setPartner(res.result.partner)
     }
-  } catch { /* 伴侣还没加入 */ }
+
+    // 统计
+    const s = res.result.stats || {}
+    stats[0].value = String(s.tasks || 0)
+    stats[1].value = String(s.shop || 0)
+    stats[2].value = String(s.dreams || 0)
+
+    // 券
+    coupons.value = res.result.coupons || []
+  } catch {}
 }
 
-// 点击自己的头像 → 微信原生选择头像 → 上传到云存储
+// 头像
+myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
+
 async function onChooseAvatar(e: any) {
   const tempUrl = e.detail?.avatarUrl || ''
   if (!tempUrl) return
 
   uni.showLoading({ title: '上传头像...' })
   try {
-    // 上传到云存储，获得永久 cloud:// 链接
     const uid = store.openid || String(Date.now())
     const cloudPath = `avatars/${uid}.jpg`
     const upRes = await wx.cloud.uploadFile({ cloudPath, filePath: tempUrl })
-    const cloudFileId = upRes.fileID // cloud://xxx 格式，永久有效
+    const cloudFileId = upRes.fileID
 
     myAvatar.value = cloudFileId
     store.updateUser({ avatar: cloudFileId })
     uni.setStorageSync('my_avatar', cloudFileId)
-    // 同步到数据库
     const saveRes = await wx.cloud.callFunction({ name: 'updateAvatar', data: { avatar: cloudFileId } })
     uni.hideLoading()
     if (saveRes.result?.success) {
@@ -78,71 +100,8 @@ async function onChooseAvatar(e: any) {
   }
 }
 
-async function loadInviteCode() {
-  // 1. 内存 store
-  if (store.inviteCode) {
-    inviteCode.value = store.inviteCode
-    return
-  }
-  // 2. 本地存储
-  store.loadInviteCodeFromStorage()
-  if (store.inviteCode) {
-    inviteCode.value = store.inviteCode
-    return
-  }
-  // 3. 云函数
-  if (!store.coupleId) return
-  try {
-    const res = await wx.cloud.callFunction({ name: 'getCoupleInfo', data: { coupleId: store.coupleId } })
-    if (res.result.success && res.result.inviteCode) {
-      inviteCode.value = res.result.inviteCode
-      store.setInviteCode(res.result.inviteCode)
-    } else {
-      inviteCode.value = '暂无'
-    }
-  } catch {
-    inviteCode.value = '获取失败'
-  }
-}
-
 function onShowSettings() {
   showSettings.value = true
-  loadInviteCode()
-}
-
-onShow(() => {
-  loadAvatars()
-  loadCoupleData()
-})
-
-async function loadCoupleData() {
-  if (!store.coupleId) return
-
-  // 各个云函数独立加载，一个失败不影响其他
-  wx.cloud.callFunction({ name: 'getCoupleInfo', data: { coupleId: store.coupleId } }).then(res => {
-    if (res.result.success) {
-      coupleName.value = res.result.name || '我们的空间'
-      if (res.result.plant) {
-        plantVariety.value = res.result.plant.variety || 'rose'
-      }
-    }
-  }).catch(() => {})
-
-  wx.cloud.callFunction({ name: 'getCoupons', data: { coupleId: store.coupleId } }).then(res => {
-    if (res.result.success) {
-      coupons.value = res.result.coupons || []
-    }
-  }).catch(() => {})
-
-  wx.cloud.callFunction({ name: 'getCoupleStats', data: { coupleId: store.coupleId } }).then(res => {
-    if (res.result.success) {
-      const s = res.result.stats
-      stats[0].value = String(s.tasks || 0)
-      stats[1].icon = s.plantIcon || '🌱'
-      stats[1].value = s.plantLabel || '种子'
-      stats[2].value = String(s.dreams || 0)
-    }
-  }).catch(() => {})
 }
 
 const coupons = ref<any[]>([])
@@ -152,6 +111,64 @@ const showSettings = ref(false)
 const couponTab = ref('unused')
 const filteredCoupons = computed(() => coupons.value.filter(c => c.status === couponTab.value))
 const unusedCount = computed(() => coupons.value.filter(c => c.status === 'unused').length)
+
+// 券包左滑删除
+const swipeState = ref<Record<string, number>>({})
+const swipeStartX = ref(0)
+const swipingId = ref('')
+const couponDelWidth = 140
+
+function couponTouchStart(e: any, id: string) {
+  const c = coupons.value.find(c => c._id === id)
+  if (!c || c.status === 'unused') return
+  swipeStartX.value = e.touches[0].clientX
+  swipingId.value = id
+}
+
+function couponTouchMove(e: any) {
+  if (!swipingId.value) return
+  const dx = e.touches[0].clientX - swipeStartX.value
+  const cur = swipeState.value[swipingId.value] || 0
+  if (dx < 0) {
+    swipeState.value[swipingId.value] = Math.max(dx, -couponDelWidth)
+  } else {
+    swipeState.value[swipingId.value] = Math.min(0, cur + dx * 0.3)
+  }
+}
+
+function couponTouchEnd() {
+  const id = swipingId.value
+  if (!id) return
+  const cur = swipeState.value[id] || 0
+  swipeState.value[id] = cur < -couponDelWidth / 2 ? -couponDelWidth : 0
+  swipingId.value = ''
+}
+
+function couponTap(id: string) {
+  const x = swipeState.value[id] || 0
+  if (Math.abs(x) > 5) {
+    swipeState.value[id] = 0
+  }
+}
+
+async function onCouponDelete(c: any) {
+  const ok = await uni.showModal({ title: '确认删除', content: `确定删除「${c.name}」吗？` })
+  if (!ok.confirm) return
+  swipeState.value[c._id] = 0
+  coupons.value = coupons.value.filter(x => x._id !== c._id)
+  try {
+    const res = await wx.cloud.callFunction({ name: 'couponDelete', data: { couponId: c._id } })
+    if (!res.result.success) {
+      coupons.value.push(c)
+      uni.showToast({ title: res.result.error || '删除失败', icon: 'none' })
+    } else {
+      uni.showToast({ title: '已删除', icon: 'success' })
+    }
+  } catch {
+    coupons.value.push(c)
+    uni.showToast({ title: '删除失败', icon: 'none' })
+  }
+}
 
 function startEditName() { newName.value = coupleName.value; editingName.value = true }
 async function saveName() {
@@ -188,20 +205,9 @@ async function setGender(g: string) {
   }
 }
 
-async function switchVariety(key: string) {
-  if (key === plantVariety.value || !store.coupleId) return
-  try {
-    await wx.cloud.callFunction({ name: 'updatePlantVariety', data: { coupleId: store.coupleId, variety: key } })
-    plantVariety.value = key
-    uni.showToast({ title: '已切换', icon: 'success' })
-  } catch {
-    uni.showToast({ title: '切换失败', icon: 'none' })
-  }
-}
-
 const stats = reactive([
   { icon:'✅', value:'0', unit:'次', label:'累计任务' },
-  { icon:'🌱', value:'种子', unit:'', label:'植物状态' },
+  { icon:'🛒', value:'0', unit:'个', label:'商城商品' },
   { icon:'⭐', value:'0', unit:'个', label:'梦想完成' },
 ])
 </script>
@@ -229,10 +235,6 @@ const stats = reactive([
       </view>
       <text class="couple-name">{{ coupleName }}</text>
       <text class="days">在一起 {{ togetherDays }} 天</text>
-      <view class="plant-badge">
-        <text class="pb-icon">{{ PLANT_STAGES[2].icon }}</text>
-        <text class="pb-text">{{ VARIETY_MAP[plantVariety] }} · {{ PLANT_STAGES[2].label }}</text>
-      </view>
     </view>
 
     <!-- 互动币 -->
@@ -274,18 +276,25 @@ const stats = reactive([
           <view class="close-btn" @tap="showCoupons = false"><text>✕</text></view>
         </view>
         <view class="coupon-tabs">
-          <view v-for="t in ['unused','used','expired']" :key="t" class="ctab" :class="{ active:couponTab===t }" @tap="couponTab=t">
-            {{ t==='unused'?'未使用':t==='used'?'已使用':'已过期' }}
+          <view v-for="t in ['unused','used']" :key="t" class="ctab" :class="{ active:couponTab===t }" @tap="couponTab=t">
+            {{ t==='unused'?'未使用':'已使用' }}
           </view>
         </view>
         <scroll-view class="coupon-list" scroll-y>
-          <view v-for="c in filteredCoupons" :key="c._id" class="c-card" :class="c.status">
-            <view class="c-left"><text class="c-icon">{{ c.type==='service'?'🛎️':c.type==='physical'?'🎁':'👑' }}</text></view>
-            <view class="c-info">
-              <text class="c-name">{{ c.name }}</text>
-              <text class="c-date">{{ c.ownerId === store.openid ? '我的' : 'TA的' }} · {{ c.usedAt ? '已使用' : '未使用' }}</text>
+          <view v-for="c in filteredCoupons" :key="c._id" class="coupon-card-wrap">
+            <view class="coupon-del-btn" :class="{ show: (swipeState[c._id] || 0) < 0 }" @tap.stop="onCouponDelete(c)" v-if="c.status !== 'unused'">
+              <text class="del-text" v-if="(swipeState[c._id] || 0) < 0">删除</text>
             </view>
-            <view v-if="c.status==='unused' && c.ownerId === store.openid" class="use-btn" @tap="useCoupon(c)"><text>使用</text></view>
+            <view class="c-card" :class="c.status"
+              :style="{ transform: (swipeState[c._id] || 0) ? 'translateX(' + (swipeState[c._id] || 0) + 'rpx)' : '' }"
+              @touchstart="couponTouchStart($event, c._id)" @touchmove="couponTouchMove($event)" @touchend="couponTouchEnd()" @tap="couponTap(c._id)">
+              <view class="c-left"><text class="c-icon">{{ c.type==='service'?'🛎️':c.type==='physical'?'🎁':'👑' }}</text></view>
+              <view class="c-info">
+                <text class="c-name">{{ c.name }}</text>
+                <text class="c-date">{{ c.ownerId === store.openid ? '我的' : 'TA的' }} · {{ c.usedAt ? '已使用' : '未使用' }}</text>
+              </view>
+              <view v-if="c.status==='unused' && c.ownerId === store.openid" class="use-btn" @tap.stop="useCoupon(c)"><text>使用</text></view>
+            </view>
           </view>
           <empty-state v-if="filteredCoupons.length===0" icon="🎫" text="空空如也" />
         </scroll-view>
@@ -301,7 +310,7 @@ const stats = reactive([
         </view>
         <view class="settings-body">
           <view class="set-row">
-            <text class="set-label">情侣名</text>
+            <text class="set-label">我们的家</text>
             <text class="set-val" v-if="!editingName" @tap="startEditName">{{ coupleName }} ✏️</text>
             <input v-else class="set-input" v-model="newName" @blur="saveName" maxlength="20" />
           </view>
@@ -316,14 +325,6 @@ const stats = reactive([
             <text class="set-label">邀请码</text>
             <text class="invite-code" v-if="inviteCode && inviteCode !== '暂无' && inviteCode !== '获取失败'" @tap="() => { uni.setClipboardData({ data: inviteCode }); uni.showToast({ title: '已复制', icon: 'success' }) }">{{ inviteCode }} 📋</text>
             <text class="invite-code dim" v-else>{{ inviteCode || '加载中...' }}</text>
-          </view>
-          <view class="set-row">
-            <text class="set-label">植物品种</text>
-            <view class="variety-grid">
-              <view v-for="(label, key) in VARIETY_MAP" :key="key" class="v-item" :class="{ sel:plantVariety===key }" @tap="switchVariety(key as string)">
-                <text>{{ label }}</text>
-              </view>
-            </view>
           </view>
         </view>
       </view>
@@ -350,10 +351,7 @@ const stats = reactive([
 .heart-beat { font-size:44rpx; animation:heartbeat 1.2s ease-in-out infinite; display:block; }
 @keyframes heartbeat { 0%,100%{transform:scale(1)} 25%{transform:scale(1.2)} 50%{transform:scale(1)} 75%{transform:scale(1.15)} }
 .couple-name { font-size:36rpx; font-weight:700; color:#fff; margin-bottom:8rpx; letter-spacing:2rpx; }
-.days { font-size:26rpx; color:rgba(255,255,255,0.8); margin-bottom:16rpx; }
-.plant-badge { display:flex; align-items:center; background:rgba(255,255,255,0.22); backdrop-filter:blur(6rpx); border-radius:32rpx; padding:8rpx 24rpx; }
-.pb-icon { font-size:22rpx; margin-right:6rpx; }
-.pb-text { font-size:22rpx; color:#fff; font-weight:500; }
+.days { font-size:26rpx; color:rgba(255,255,255,0.8); }
 
 .data-grid { background:rgba(255,255,255,0.85); backdrop-filter:blur(16rpx); border-radius:20rpx; padding:20rpx 10rpx 10rpx; margin-bottom:16rpx; box-shadow:0 4rpx 20rpx rgba(255,184,0,0.06); border:1rpx solid rgba(255,255,255,0.5); }
 .section-header { padding:0 20rpx 16rpx; border-bottom:1rpx solid rgba(255,184,0,0.06); margin-bottom:8rpx; }
@@ -386,7 +384,7 @@ const stats = reactive([
 .ctab.active { color:#FFB800; font-weight:700; position:relative; }
 .ctab.active::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:40rpx; height:4rpx; background:#FFB800; border-radius:2rpx; }
 .coupon-list { flex:1; padding:16rpx 24rpx; max-height:50vh; }
-.c-card { display:flex; align-items:center; padding:22rpx 18rpx; margin-bottom:14rpx; border-radius:14rpx; border-left:6rpx solid #FFB800; background:#FFFDE7; }
+.c-card { display:flex; align-items:center; padding:22rpx 18rpx; border-radius:14rpx; border-left:6rpx solid #FFB800; background:#FFFDE7; position:relative; z-index:1; transition:transform 0.2s ease; }
 .c-card.used { border-left-color:#ccc; background:#F7F7F7; }
 .c-card.expired { border-left-color:#ddd; background:#F5F5F5; }
 .c-left { margin-right:14rpx; }
@@ -394,7 +392,12 @@ const stats = reactive([
 .c-info { flex:1; }
 .c-name { font-size:26rpx; font-weight:600; color:#333; display:block; }
 .c-date { font-size:22rpx; color:#bbb; margin-top:4rpx; }
-.use-btn { padding:10rpx 24rpx; border-radius:20rpx; background:linear-gradient(135deg,#FFB800,#FFCC00); font-size:22rpx; font-weight:700; color:#fff; }
+.use-btn { padding:10rpx 24rpx; border-radius:20rpx; background:linear-gradient(135deg,#FFB800,#FFCC00); font-size:22rpx; font-weight:700; color:#fff; flex-shrink:0; }
+
+.coupon-card-wrap { position: relative; overflow: hidden; border-radius: 14rpx; margin-bottom: 14rpx; }
+.coupon-del-btn { position: absolute; right: 0; top: 0; bottom: 0; width: 140rpx; border-radius: 0 14rpx 14rpx 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
+.coupon-del-btn.show { background: #F44336; opacity: 1; }
+.coupon-del-btn .del-text { color: #fff; font-size: 26rpx; font-weight: 700; }
 
 .settings-body { padding:24rpx 28rpx; }
 .set-row { padding:20rpx 0; border-bottom:1rpx solid #F5F5F5; }
@@ -406,7 +409,4 @@ const stats = reactive([
 .gender-btns { display: flex; gap: 16rpx; }
 .g-btn { flex: 1; text-align: center; padding: 16rpx; border-radius: 16rpx; font-size: 26rpx; color: #999; border: 2rpx solid #F0F0F0; background: #FAFAFA; }
 .g-btn.sel { color: #FF9800; border-color: #FF9800; background: #FFF3E0; font-weight: 700; }
-.variety-grid { display:flex; flex-wrap:wrap; gap:12rpx; }
-.v-item { padding:12rpx 24rpx; border-radius:20rpx; font-size:24rpx; color:#999; background:#F5F5F5; }
-.v-item.sel { background:#FFB800; color:#fff; font-weight:600; }
 </style>

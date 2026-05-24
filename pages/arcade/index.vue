@@ -4,7 +4,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 
 const store = useAppStore()
-const activeArcade = ref<'gacha' | 'shop'>('gacha')
+const activeArcade = ref<'gacha' | 'shop'>('shop')
 
 const shopItems = ref<any[]>([])
 const showCreateShop = ref(false)
@@ -35,14 +35,16 @@ async function onShopDelete(item: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `确定删除「${item.name}」吗？` })
   if (!ok.confirm) return
   try {
+    shopItems.value = shopItems.value.filter(i => i._id !== item._id)
+    uni.showToast({ title: '已删除', icon: 'success' })
     const res = await wx.cloud.callFunction({ name: 'shopDelete', data: { itemId: item._id } })
-    if (res.result.success) {
-      uni.showToast({ title: '已删除', icon: 'success' })
-      loadArcadeData()
-    } else {
+    if (!res.result.success) {
+      shopItems.value.push(item)
       uni.showToast({ title: '删除失败', icon: 'none' })
+    } else {
+      loadArcadeData()
     }
-  } catch { uni.showToast({ title: '删除失败', icon: 'none' }) }
+  } catch { shopItems.value.push(item); uni.showToast({ title: '删除失败', icon: 'none' }) }
 }
 
 async function onShopPurchase(item: any) {
@@ -138,14 +140,17 @@ async function deletePoolItem(item: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `确定删除「${item.label}」吗？` })
   if (!ok.confirm) return
   try {
+    gachaPool.value = gachaPool.value.filter(i => i._id !== item._id)
+    uni.showToast({ title: '已删除', icon: 'success' })
     const res = await wx.cloud.callFunction({ name: 'gachaPoolDelete', data: { itemId: item._id } })
-    if (res.result.success) {
-      uni.showToast({ title: '已删除', icon: 'success' })
-      loadArcadeData()
-    } else {
+    if (!res.result.success) {
+      gachaPool.value.push(item)
       uni.showToast({ title: '删除失败', icon: 'none' })
+    } else {
+      loadArcadeData()
     }
   } catch {
+    gachaPool.value.push(item)
     uni.showToast({ title: '删除失败', icon: 'none' })
   }
 }
@@ -184,12 +189,66 @@ onShow(() => {
   <page-layout>
     <!-- 乐园子Tab -->
     <view class="sub-tabs">
-      <view class="sub-tab" :class="{ active: activeArcade === 'gacha' }" @tap="activeArcade = 'gacha'">🎰 扭蛋机</view>
       <view class="sub-tab" :class="{ active: activeArcade === 'shop' }" @tap="activeArcade = 'shop'">🛒 小卖部</view>
+      <view class="sub-tab" :class="{ active: activeArcade === 'gacha' }" @tap="activeArcade = 'gacha'">🎰 扭蛋机</view>
     </view>
 
     <!-- 内测：一键设余额 -->
     <view class="test-btn" @tap="setBalance999"><text>🔧 余额设为999</text></view>
+
+    <!-- 小卖部 -->
+    <view class="tab-content" v-if="activeArcade === 'shop'">
+      <view class="shop-grid">
+        <view class="shop-col" v-for="item in shopItems" :key="item._id">
+          <shop-item :item="item" showDelete @purchase="onShopPurchase" @delete="onShopDelete" @edit="onShopEdit" />
+        </view>
+      </view>
+      <empty-state v-if="shopItems.length === 0" icon="🛒" text="货架空空，快来上架第一个商品吧" />
+      <view class="fab" @tap="showCreateShop = true">
+        <text class="fab-icon">+</text><text>上架商品</text>
+      </view>
+
+      <!-- 上架商品弹窗 -->
+      <view v-if="showCreateShop" class="modal-mask" @tap="showCreateShop = false; editingShopId = ''">
+        <view class="modal-sheet" @tap.stop>
+          <view class="modal-header">
+            <text class="modal-title">{{ editingShopId ? '编辑商品' : '上架新商品' }}</text>
+            <text class="modal-close" @tap="showCreateShop = false; editingShopId = ''">✕</text>
+          </view>
+          <scroll-view class="modal-body" scroll-y>
+            <view class="form-group">
+              <text class="form-label"><text class="required">*</text> 商品类型</text>
+              <view class="seg-group">
+                <view v-for="t in [{k:'service',v:'服务券'},{k:'physical',v:'实物券'},{k:'privilege',v:'特权券'}]" :key="t.k" class="seg" :class="{ sel: shopForm.type === t.k }" @tap="shopForm.type = t.k">{{ t.v }}</view>
+              </view>
+            </view>
+            <view class="form-group">
+              <text class="form-label"><text class="required">*</text> 商品名称</text>
+              <input class="form-input" v-model="shopForm.name" placeholder="例如：免费按摩5分钟" maxlength="50" />
+            </view>
+            <view class="form-group">
+              <text class="form-label">描述</text>
+              <textarea class="form-textarea" v-model="shopForm.description" placeholder="补充说明..." maxlength="200" />
+            </view>
+            <view class="form-row">
+              <view class="form-group half">
+                <text class="form-label"><text class="required">*</text> 价格(币)</text>
+                <input class="form-input" v-model.number="shopForm.price" type="number" placeholder="1" />
+              </view>
+              <view class="form-group half">
+                <text class="form-label"><text class="required">*</text> 库存</text>
+                <input class="form-input" v-model.number="shopForm.stock" type="number" placeholder="1" />
+              </view>
+            </view>
+          </scroll-view>
+          <view class="modal-footer">
+            <view class="submit-btn" :class="{ disabled: shopSubmitting }" @tap="!shopSubmitting && submitShopItem()">
+              <text>{{ shopSubmitting ? '保存中...' : editingShopId ? '保存修改' : '上架商品' }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
 
     <!-- 扭蛋机 -->
     <view class="tab-content" v-if="activeArcade === 'gacha'">
@@ -277,60 +336,6 @@ onShow(() => {
           <view class="modal-footer">
             <view class="submit-btn" :class="{ disabled: poolSubmitting }" @tap="!poolSubmitting && submitPoolItem()">
               <text>{{ poolSubmitting ? '保存中...' : editingPoolId ? '保存修改' : '添加奖励' }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 小卖部 -->
-    <view class="tab-content" v-if="activeArcade === 'shop'">
-      <view class="shop-grid">
-        <view class="shop-col" v-for="item in shopItems" :key="item._id">
-          <shop-item :item="item" showDelete @purchase="onShopPurchase" @delete="onShopDelete" @edit="onShopEdit" />
-        </view>
-      </view>
-      <empty-state v-if="shopItems.length === 0" icon="🛒" text="货架空空，快来上架第一个商品吧" />
-      <view class="fab" @tap="showCreateShop = true">
-        <text class="fab-icon">+</text><text>上架商品</text>
-      </view>
-
-      <!-- 上架商品弹窗 -->
-      <view v-if="showCreateShop" class="modal-mask" @tap="showCreateShop = false; editingShopId = ''">
-        <view class="modal-sheet" @tap.stop>
-          <view class="modal-header">
-            <text class="modal-title">{{ editingShopId ? '编辑商品' : '上架新商品' }}</text>
-            <text class="modal-close" @tap="showCreateShop = false; editingShopId = ''">✕</text>
-          </view>
-          <scroll-view class="modal-body" scroll-y>
-            <view class="form-group">
-              <text class="form-label"><text class="required">*</text> 商品类型</text>
-              <view class="seg-group">
-                <view v-for="t in [{k:'service',v:'服务券'},{k:'physical',v:'实物券'},{k:'privilege',v:'特权券'}]" :key="t.k" class="seg" :class="{ sel: shopForm.type === t.k }" @tap="shopForm.type = t.k">{{ t.v }}</view>
-              </view>
-            </view>
-            <view class="form-group">
-              <text class="form-label"><text class="required">*</text> 商品名称</text>
-              <input class="form-input" v-model="shopForm.name" placeholder="例如：免费按摩5分钟" maxlength="50" />
-            </view>
-            <view class="form-group">
-              <text class="form-label">描述</text>
-              <textarea class="form-textarea" v-model="shopForm.description" placeholder="补充说明..." maxlength="200" />
-            </view>
-            <view class="form-row">
-              <view class="form-group half">
-                <text class="form-label"><text class="required">*</text> 价格(币)</text>
-                <input class="form-input" v-model.number="shopForm.price" type="number" placeholder="1" />
-              </view>
-              <view class="form-group half">
-                <text class="form-label"><text class="required">*</text> 库存</text>
-                <input class="form-input" v-model.number="shopForm.stock" type="number" placeholder="1" />
-              </view>
-            </view>
-          </scroll-view>
-          <view class="modal-footer">
-            <view class="submit-btn" :class="{ disabled: shopSubmitting }" @tap="!shopSubmitting && submitShopItem()">
-              <text>{{ shopSubmitting ? '保存中...' : editingShopId ? '保存修改' : '上架商品' }}</text>
             </view>
           </view>
         </view>

@@ -81,7 +81,7 @@ function onEdit() { emit('edit', props.item) }
   position: absolute; top: 10rpx; right: 10rpx;
   width: 40rpx; height: 40rpx; border-radius: 50%;
   background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;
-  font-size: 22rpx; color: #fff;
+  font-size: 22rpx; color: #fff; z-index: 1;
 }
 .del-btn.edit { right: 58rpx; background: rgba(33,150,243,0.7); }
 .body { padding: 18rpx 20rpx; }

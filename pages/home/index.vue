@@ -7,66 +7,39 @@ import { timeAgo } from '@/utils/date'
 const store = useAppStore()
 const loading = ref(false)
 
-const plantData = ref({
-  stage: 'seedling', growthValue: 0, health: 'healthy',
-  variety: 'rose', lastWatered: '暂无记录'
-})
-
 const todayCheckIn = ref({ completed: 0, total: 0 })
 const activities = ref<any[]>([])
+const coins = ref(0)
 
 function formatRelativeTime(t: string) {
   if (!t) return ''
-  try {
-    return timeAgo(t)
-  } catch { return t }
+  try { return timeAgo(t) } catch { return t }
 }
 
 async function loadData() {
   if (!store.coupleId) return
   loading.value = true
-
-  wx.cloud.callFunction({ name: 'getCoupleInfo', data: { coupleId: store.coupleId } }).then(res => {
+  try {
+    const res = await wx.cloud.callFunction({ name: 'getHomeData', data: { coupleId: store.coupleId } })
     if (res.result.success) {
-      if (res.result.plant) {
-        const p = res.result.plant
-        plantData.value = {
-          stage: p.stage || 'seedling',
-          growthValue: p.growthValue || 0,
-          health: p.health || 'healthy',
-          variety: p.variety || 'rose',
-          lastWatered: p.lastWatered ? formatRelativeTime(p.lastWatered) : '暂无记录'
-        }
-      }
-      wateredToday.value = res.result.wateredToday || false
-    }
-  }).catch(() => {})
-
-  wx.cloud.callFunction({ name: 'getTasks', data: { coupleId: store.coupleId } }).then(res => {
-    if (res.result.success) {
-      const tasks = res.result.tasks || []
-      const dailyTasks = tasks.filter((t: any) => t.type === 'DAILY')
-      const done = dailyTasks.filter((t: any) => t.status === 'submitted' || t.status === 'approved').length
-      todayCheckIn.value = { completed: done, total: dailyTasks.length }
-    }
-  }).catch(() => {})
-
-  wx.cloud.callFunction({ name: 'getFeed', data: { coupleId: store.coupleId } }).then(res => {
-    if (res.result.success) {
+      todayCheckIn.value = res.result.todayCheckIn
       activities.value = (res.result.activities || []).map((a: any) => ({
         ...a,
         time: formatRelativeTime(a.time)
       }))
+      coins.value = res.result.coins || 0
+      store.setBalance(coins.value)
+      if (res.result.name) {
+        uni.setNavigationBarTitle({ title: res.result.name })
+      }
     }
-  }).catch(() => {}).finally(() => {
+  } catch {} finally {
     loading.value = false
-  })
+  }
 }
 
 const subBannerClosed = ref(!!uni.getStorageSync('sub_banner_closed'))
 const subscribed = ref(!!uni.getStorageSync('subscribed_msg'))
-const watering = ref(false)
-const wateredToday = ref(false)
 
 function dismissSubBanner() {
   subBannerClosed.value = true
@@ -78,26 +51,6 @@ onPullDownRefresh(async () => {
   await loadData()
   uni.stopPullDownRefresh()
 })
-
-async function onWater() {
-  if (!store.coupleId || watering.value) return
-  watering.value = true
-  try {
-    const res = await wx.cloud.callFunction({ name: 'plantWater', data: { coupleId: store.coupleId, source: 'manual' } })
-    if (res.result.success) {
-      uni.showToast({ title: `+${res.result.add} 成长值`, icon: 'success' })
-      wateredToday.value = true
-      loadData()
-    } else {
-      uni.showToast({ title: res.result.error || '浇水失败', icon: 'none' })
-      if (res.result.error === '今天已经浇过了') wateredToday.value = true
-    }
-  } catch {
-    uni.showToast({ title: '浇水失败', icon: 'none' })
-  } finally {
-    watering.value = false
-  }
-}
 
 function requestSubscribe() {
   wx.requestSubscribeMessage({
@@ -118,20 +71,11 @@ function goCheckIn() {
 
 <template>
   <page-layout>
-    <!-- 植物园卡片 -->
-    <plant-status :plantData="plantData" />
-
     <!-- 订阅消息横幅 -->
     <view class="sub-banner" v-if="!subscribed && !subBannerClosed" @tap="requestSubscribe">
       <text class="sb-icon">🔔</text>
       <text class="sb-text">开启通知，对方用券时提醒你</text>
       <text class="sb-btn">去开启</text>
-    </view>
-
-    <!-- 浇水按钮 -->
-    <view class="water-btn" :class="{ disabled: wateredToday || watering }" @tap="onWater">
-      <text class="water-icon">💧</text>
-      <text class="water-label">{{ watering ? '浇水...' : wateredToday ? '今日已浇' : '浇水 +10' }}</text>
     </view>
 
     <!-- 今日打卡入口 -->
@@ -168,6 +112,8 @@ function goCheckIn() {
         </view>
       </view>
     </view>
+
+    <loading-spinner v-if="loading" text="加载中..." />
   </page-layout>
 </template>
 
@@ -183,21 +129,6 @@ function goCheckIn() {
   background: rgba(255,255,255,0.25); border-radius: 24rpx; padding: 10rpx 24rpx;
   font-size: 24rpx; color: #fff; font-weight: 700; flex-shrink: 0; margin-left: 12rpx;
 }
-.sb-close { font-size: 28rpx; color: rgba(255,255,255,0.5); flex-shrink: 0; margin-left: 14rpx; padding: 6rpx; }
-
-.water-btn {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(16rpx);
-  border-radius: 24rpx;
-  padding: 24rpx 30rpx;
-  margin-bottom: 20rpx;
-  display: flex; align-items: center; justify-content: center;
-  border: 2rpx solid rgba(33,150,243,0.2);
-  box-shadow: 0 4rpx 16rpx rgba(33,150,243,0.06);
-}
-.water-btn.disabled { opacity: 0.5; pointer-events: none; }
-.water-icon { font-size: 32rpx; margin-right: 10rpx; }
-.water-label { font-size: 28rpx; color: #2196F3; font-weight: 600; }
 
 .checkin-card {
   background: linear-gradient(135deg, #FFB800 0%, #FFCC00 100%);

@@ -95,14 +95,17 @@ async function onDreamDelete(dream: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `确定删除「${dream.title}」吗？` })
   if (!ok.confirm) return
   try {
+    dreams.value = dreams.value.filter((d: any) => d._id !== dream._id)
+    uni.showToast({ title: '已删除', icon: 'success' })
     const res = await wx.cloud.callFunction({ name: 'dreamDelete', data: { dreamId: dream._id } })
-    if (res.result.success) {
-      uni.showToast({ title: '已删除', icon: 'success' })
-      loadFutureData()
-    } else {
+    if (!res.result.success) {
+      dreams.value.push(dream)
       uni.showToast({ title: '删除失败', icon: 'none' })
+    } else {
+      loadFutureData()
     }
   } catch {
+    dreams.value.push(dream)
     uni.showToast({ title: '删除失败', icon: 'none' })
   }
 }

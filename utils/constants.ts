@@ -14,27 +14,6 @@ export const TASK_TYPE = {
 
 export const GACHA_COST = 2
 
-export const PLANT_STAGES = [
-  { key: 'seedling', label: '幼苗', icon: '🌱', threshold: 25 },
-  { key: 'growing', label: '成长', icon: '🌿', threshold: 50 },
-  { key: 'flowering', label: '开花', icon: '🌺', threshold: 75 },
-  { key: 'thriving', label: '茂盛', icon: '🌳', threshold: 100 }
-] as const
-
-export const HEALTH_MAP: Record<string, { label: string; color: string }> = {
-  healthy: { label: '健康', color: '#4CAF50' },
-  drooping: { label: '垂头', color: '#FF9800' },
-  wilted: { label: '枯萎', color: '#9E9E9E' }
-}
-
-export const VARIETY_MAP: Record<string, string> = {
-  sunflower: '向日葵',
-  rose: '玫瑰',
-  bamboo: '竹子',
-  cherry: '樱花树',
-  default: '小树苗'
-}
-
 export const ACHIEVEMENTS = [
   { id: 'sign7', category: 'persistence', name: '签到达人', desc: '连续签到7天', icon: '🔥', color: '#F44336', condition: { type: 'signDays', value: 7 } },
   { id: 'sign30', category: 'persistence', name: '签到王者', desc: '连续签到30天', icon: '🔥', color: '#F44336', condition: { type: 'signDays', value: 30 } },
@@ -48,8 +27,7 @@ export const ACHIEVEMENTS = [
   { id: 'day1000', category: 'memorial', name: '千日纪念', desc: '在一起1000天', icon: '💎', color: '#9C27B0', condition: { type: 'days', value: 1000 } },
   { id: 'gacha50', category: 'hidden', name: '欧皇降临', desc: '扭蛋50次', icon: '🎰', color: '#FFD700', condition: { type: 'gachaCount', value: 50 } },
   { id: 'shop10', category: 'hidden', name: '购物达人', desc: '购买小卖部10次', icon: '🛒', color: '#FFD700', condition: { type: 'shopCount', value: 10 } },
-  { id: 'dream5', category: 'hidden', name: '梦想成真', desc: '完成5个梦想', icon: '⭐', color: '#FFD700', condition: { type: 'dreamCount', value: 5 } },
-  { id: 'plantMax', category: 'hidden', name: '园艺大师', desc: '植物达到茂盛', icon: '🌳', color: '#FFD700', condition: { type: 'plantMax', value: 1 } }
+  { id: 'dream5', category: 'hidden', name: '梦想成真', desc: '完成5个梦想', icon: '⭐', color: '#FFD700', condition: { type: 'dreamCount', value: 5 } }
 ] as const
 
 export const DREAM_CATEGORIES = [

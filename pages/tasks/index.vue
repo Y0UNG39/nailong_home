@@ -95,11 +95,13 @@ async function onTaskDelete(task: Task) {
     content: '确定删除「' + task.title + '」吗？',
     success: async (res) => {
       if (!res.confirm) return
+      tasks.value = tasks.value.filter(t => t._id !== task._id)
+      uni.showToast({ title: '已删除', icon: 'success' })
       try {
         await wx.cloud.callFunction({ name: 'deleteTask', data: { taskId: task._id } })
-        uni.showToast({ title: '已删除', icon: 'success' })
         loadTasks()
       } catch {
+        tasks.value.push(task)
         uni.showToast({ title: '删除失败', icon: 'none' })
       }
     }

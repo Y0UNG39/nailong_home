@@ -94,16 +94,16 @@ function onAction() {
 
 <template>
   <view class="card-wrap">
-    <view class="delete-btn" :class="{ show: translateX < 0 }" @tap.stop="onDelete">
+    <view class="delete-btn" :class="{ show: translateX < 0 }" @tap.stop="onDelete" v-if="isMine">
       <text class="del-text" v-if="translateX < 0">删除</text>
     </view>
     <view
       class="card"
       :class="{ mine: isMine }"
-      :style="{ transform: 'translateX(' + translateX + 'rpx)' }"
-      @touchstart="onTouchStart"
-      @touchmove="onTouchMove"
-      @touchend="onTouchEnd"
+      :style="{ transform: isMine ? 'translateX(' + translateX + 'rpx)' : '' }"
+      @touchstart="isMine && onTouchStart($event)"
+      @touchmove="isMine && onTouchMove($event)"
+      @touchend="isMine && onTouchEnd()"
       @tap="onTap"
     >
       <view class="header">

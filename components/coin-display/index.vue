@@ -1,32 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { fetchBalance } from '@/utils/coin'
 import { timeAgo } from '@/utils/date'
+import { useAppStore } from '@/store/index'
 
 interface Props { coupleId?: string | null }
 const props = defineProps<Props>()
 
-const balance = ref(0)
+const store = useAppStore()
 const logs = ref<any[]>([])
 const expanded = ref(false)
 
-async function load() {
+async function loadLogs() {
   if (!props.coupleId) return
   const res = await fetchBalance(props.coupleId)
-  if (res?.balance !== undefined) {
-    balance.value = res.balance
+  if (res?.logs !== undefined) {
     logs.value = res.logs || []
   }
 }
 
 function toggle() {
   expanded.value = !expanded.value
-  if (expanded.value && logs.value.length === 0) load()
+  if (expanded.value && logs.value.length === 0) loadLogs()
 }
-
-// 初始加载
-import { watch } from 'vue'
-watch(() => props.coupleId, (val) => { if (val) load() }, { immediate: true })
 </script>
 
 <template>
@@ -34,7 +30,7 @@ watch(() => props.coupleId, (val) => { if (val) load() }, { immediate: true })
     <view class="coin-left">
       <text class="coin-icon">🪙</text>
       <text class="coin-label">我的硬币</text>
-      <text class="coin-value">{{ balance }}</text>
+      <text class="coin-value">{{ store.balance }}</text>
       <text class="coin-label">币</text>
     </view>
     <text class="expand-arrow">{{ expanded ? '▲' : '▼' }}</text>
