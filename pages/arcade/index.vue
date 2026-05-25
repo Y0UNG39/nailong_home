@@ -31,7 +31,6 @@ const wheelItems = ref<WItem[]>([])
 const wNewLabel = ref('')
 const wSpinning = ref(false)
 const wResult = ref('')
-const wBlink = ref(-1)
 
 function loadWheelItems() {
   if (!store.coupleId) return
@@ -58,13 +57,12 @@ function drawWheelOld() {
     ctx.draw(); return
   }
 
-  ctx.setLineWidth(1); ctx.setStrokeStyle('#fff')
   const seg = (Math.PI * 2) / n
   for (let i = 0; i < n; i++) {
     const s = -Math.PI / 2 + i * seg; const e = s + seg
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, s, e); ctx.closePath()
-    ctx.setFillStyle(wBlink.value === i ? lightenOld(COLORS[i % COLORS.length]) : COLORS[i % COLORS.length])
-    ctx.fill(); ctx.stroke()
+    ctx.setFillStyle(COLORS[i % COLORS.length])
+    ctx.fill()
     const mid = s + seg / 2; const lr = r * 0.65
     ctx.save()
     ctx.translate(cx + Math.cos(mid) * lr, cy + Math.sin(mid) * lr); ctx.rotate(mid + Math.PI / 2)
@@ -73,27 +71,45 @@ function drawWheelOld() {
     ctx.fillText(wheelItems.value[i].label.length > 5 ? wheelItems.value[i].label.slice(0, 4) + '..' : wheelItems.value[i].label, 0, 0)
     ctx.restore()
   }
+
+  // 指针：圆心到边缘的细线
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(wArrow.value * Math.PI / 180)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.lineTo(0, -r + 6)
+  ctx.setStrokeStyle('#F44336')
+  ctx.setLineWidth(3)
+  ctx.setLineCap('round')
+  ctx.stroke()
+  // 圆心小圆
+  ctx.beginPath()
+  ctx.arc(0, 0, 6, 0, Math.PI * 2)
+  ctx.setFillStyle('#F44336')
+  ctx.fill()
+  ctx.restore()
+
   ctx.draw()
 }
 
-function lightenOld(hex: string): string {
-  const h = parseInt(hex.replace('#', ''), 16)
-  const inc = (v: number) => Math.min(255, v + 60)
-  return `#${((inc(h >> 16) << 16) | (inc((h >> 8) & 0xFF) << 8) | inc(h & 0xFF)).toString(16).padStart(6, '0')}`
-}
 
 function wSpin() {
   if (wSpinning.value || wheelItems.value.length === 0) return
-  wSpinning.value = true; wResult.value = ''; wBlink.value = -1
+  wSpinning.value = true; wResult.value = ''
 
   const n = wheelItems.value.length
   const wi = Math.floor(Math.random() * n)
   const label = wheelItems.value[wi].label
   const seg = 360 / n
 
-  // 指针目标：转到 winner 扇区正中
+  // 目标角度 = 扇区 wi 的正中间（从12点钟顺时针）
+  const targetAngle = wi * seg + seg / 2
+  const currentMod = ((wArrow.value % 360) + 360) % 360
+  let diff = targetAngle - currentMod
+  if (diff < 0) diff += 360
   const spins = 5 + Math.floor(Math.random() * 3)
-  const target = spins * 360 + wi * seg + seg / 2
+  const totalTarget = wArrow.value + spins * 360 + diff
 
   const dur = 2500; const tick = 60; const s = Date.now()
   const startA = wArrow.value
@@ -101,11 +117,14 @@ function wSpin() {
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
     const e = 1 - Math.pow(1 - p, 3)
-    wArrow.value = startA + e * target
+    wArrow.value = startA + e * (totalTarget - startA)
+    drawWheelOld()
     if (p >= 1) {
       clearInterval(timer)
-      wBlink.value = wi; drawWheelOld()
-      nextTick(() => { wResult.value = label; wSpinning.value = false })
+      wArrow.value = totalTarget
+      wResult.value = label
+      wSpinning.value = false
+      drawWheelOld()
     }
   }, tick)
 }
@@ -243,17 +262,14 @@ onShow(() => { loadArcadeData() })
       <view class="wh-stage">
         <view class="wh-wheel">
           <canvas canvas-id="pieCanvas" class="pie-canvas"></canvas>
-          <view class="wh-arrow-wrap">
-            <view class="wh-arrow" :style="{ transform: 'rotate(' + wArrow + 'deg)' }"></view>
-          </view>
         </view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
           <text class="wh-btn-t">抽奖</text>
         </view>
       </view>
 
-      <view class="wh-result" v-if="wResult">
-        <text class="whr-text">🎉 中了 <text class="whr-label">{{ wResult }}</text></text>
+      <view class="wh-result">
+        <text class="whr-text" v-if="wResult">🎉 中了 <text class="whr-label">{{ wResult }}</text></text>
       </view>
 
       <view class="wh-mgmt">
@@ -365,15 +381,6 @@ onShow(() => { loadArcadeData() })
 }
 .wh-wheel { position:relative; width:600rpx; height:600rpx; }
 .pie-canvas { width:600rpx; height:600rpx; }
-.wh-arrow-wrap { position:absolute; top:300rpx; left:300rpx; width:0; height:0; z-index:2; }
-.wh-arrow {
-  position:absolute; bottom:0; left:-3rpx;
-  width:6rpx; height:280rpx;
-  background:linear-gradient(to bottom, #F44336 60%, #FFB74D);
-  border-radius:3rpx;
-  box-shadow:0 2rpx 8rpx rgba(0,0,0,0.25);
-}
-.wh-arrow.off { opacity:0.5; }
 .wh-btn { text-align:center; margin-top:20rpx; width:100%; }
 .wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-btn-t {
@@ -384,7 +391,7 @@ onShow(() => { loadArcadeData() })
   box-shadow:0 4rpx 20rpx rgba(255,152,0,0.4);
 }
 
-.wh-result { text-align:center; padding:12rpx; }
+.wh-result { text-align:center; height:56rpx; display:flex; align-items:center; justify-content:center; }
 .whr-text { font-size:28rpx; color:#FF9800; }
 .whr-label { font-size:34rpx; font-weight:800; color:#F44336; }
 
