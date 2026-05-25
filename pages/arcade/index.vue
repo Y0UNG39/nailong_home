@@ -220,6 +220,7 @@ onShow(() => { loadArcadeData() })
 
     <!-- 小卖部 -->
     <view class="tab-content" v-if="activeTab === 'shop'">
+      <view class="test-btn" @tap="setBalance999"><text>🔧 余额设为999</text></view>
       <view class="shop-grid">
         <view class="shop-col" v-for="item in shopItems" :key="item._id">
           <shop-item :item="item" showDelete @purchase="onShopPurchase" @delete="onShopDelete" @edit="onShopEdit" />
@@ -242,7 +243,9 @@ onShow(() => { loadArcadeData() })
       <view class="wh-stage">
         <view class="wh-wheel">
           <canvas canvas-id="pieCanvas" class="pie-canvas"></canvas>
-          <view class="wh-arrow" :class="{ off: wSpinning }" :style="{ transform: 'rotate(' + wArrow + 'deg)' }"></view>
+          <view class="wh-arrow-wrap">
+            <view class="wh-arrow" :style="{ transform: 'rotate(' + wArrow + 'deg)' }"></view>
+          </view>
         </view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
           <text class="wh-btn-t">抽奖</text>
@@ -321,6 +324,10 @@ onShow(() => { loadArcadeData() })
 .sub-tab.active { background:#FFB800; color:#fff; font-weight:700; box-shadow:0 4rpx 12rpx rgba(255,184,0,0.25); }
 .tab-content { padding-bottom: 140rpx; }
 
+.test-btn {
+  background: rgba(255,255,255,0.6); border: 2rpx dashed #FFB800; border-radius: 16rpx;
+  padding: 16rpx 0; text-align: center; font-size: 24rpx; color: #FFB800; margin-bottom: 20rpx;
+}
 .shop-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .shop-col { width: calc(50% - 8rpx); box-sizing: border-box; }
 .fab { position:fixed; bottom:40rpx; right:40rpx; z-index:100; display:flex; align-items:center; background:linear-gradient(135deg,#FF9800,#FFB74D); padding:18rpx 32rpx; border-radius:48rpx; box-shadow:0 8rpx 24rpx rgba(255,152,0,0.35); font-size:26rpx; color:#fff; font-weight:600; }
@@ -358,13 +365,12 @@ onShow(() => { loadArcadeData() })
 }
 .wh-wheel { position:relative; width:600rpx; height:600rpx; }
 .pie-canvas { width:600rpx; height:600rpx; }
+.wh-arrow-wrap { position:absolute; top:300rpx; left:300rpx; width:0; height:0; z-index:2; }
 .wh-arrow {
-  position:absolute; top:50%; left:50%;
-  width:6rpx; height:280rpx; margin-left:-3rpx; margin-top:-280rpx;
+  position:absolute; bottom:0; left:-3rpx;
+  width:6rpx; height:280rpx;
   background:linear-gradient(to bottom, #F44336 60%, #FFB74D);
   border-radius:3rpx;
-  transform-origin:3rpx 280rpx;
-  z-index:2;
   box-shadow:0 2rpx 8rpx rgba(0,0,0,0.25);
 }
 .wh-arrow.off { opacity:0.5; }
