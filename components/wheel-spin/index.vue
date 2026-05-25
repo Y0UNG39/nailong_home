@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
 const props = defineProps<{ coupleId: string | null }>()
 
@@ -13,86 +13,39 @@ const newLabel = ref('')
 const newWeight = ref(10)
 const spinning = ref(false)
 const result = ref('')
-const highlightIdx = ref(-1)
-const offsetAngle = ref(0)
+const blinkIdx = ref(-1)
 const editingId = ref('')
 const editingWeight = ref(0)
 
 const totalWeight = computed(() => items.value.reduce((s, i) => s + i.weight, 0))
 const isReady = computed(() => totalWeight.value === 100)
-const canvasSize = 300
+
+const radius = 170
+
+const sliceStyles = computed(() => {
+  const n = items.value.length
+  if (n === 0) return []
+  let a = 0
+  return items.value.map((item, i) => {
+    const deg = (item.weight / 100) * 360
+    const mid = a + deg / 2
+    a += deg
+    return {
+      background: COLORS[i % COLORS.length],
+      transform: `rotate(${mid}deg) translateY(-${radius}rpx)`
+    }
+  })
+})
 
 function loadItems() {
   if (!props.coupleId) return
   wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: props.coupleId } }).then(
     (res: any) => {
-      if (res.result.success) {
-        items.value = res.result.items
-        nextTick(() => drawWheel())
-      }
+      if (res.result.success) items.value = res.result.items
     }
   ).catch(() => {})
 }
-
-function drawWheel() {
-  if (items.value.length === 0) return
-  const ctx = uni.createCanvasContext('wheelCanvas')
-  const cx = canvasSize / 2
-  const cy = canvasSize / 2
-  const r = cx - 6
-
-  ctx.clearRect(0, 0, canvasSize, canvasSize)
-
-  let angle = -Math.PI / 2 + offsetAngle.value
-  for (let i = 0; i < items.value.length; i++) {
-    const swipe = (items.value[i].weight / 100) * Math.PI * 2
-    const endAngle = angle + swipe
-
-    // 扇形
-    ctx.beginPath()
-    ctx.moveTo(cx, cy)
-    ctx.arc(cx, cy, r, angle, endAngle)
-    ctx.closePath()
-    ctx.setFillStyle(highlightIdx.value === i ? lighten(COLORS[i % COLORS.length]) : COLORS[i % COLORS.length])
-    ctx.fill()
-    ctx.setStrokeStyle('#fff')
-    ctx.setLineWidth(1)
-    ctx.stroke()
-
-    // 文字
-    const midAngle = angle + swipe / 2
-    const labelR = r * 0.7
-    const tx = cx + Math.cos(midAngle) * labelR
-    const ty = cy + Math.sin(midAngle) * labelR
-    ctx.save()
-    ctx.translate(tx, ty)
-    ctx.rotate(midAngle + Math.PI / 2)
-    ctx.setFillStyle('#fff')
-    ctx.setFontSize(10)
-    ctx.setTextAlign('center')
-    ctx.setTextBaseline('middle')
-    const txt = items.value[i].label
-    ctx.fillText(txt.length > 6 ? txt.slice(0, 5) + '..' : txt, 0, 0)
-    ctx.restore()
-
-    angle = endAngle
-  }
-
-  // 中心圆 + 指针
-  ctx.beginPath()
-  ctx.arc(cx, cy, 16, 0, Math.PI * 2)
-  ctx.setFillStyle('#333')
-  ctx.fill()
-  ctx.draw()
-}
-
-function lighten(hex: string): string {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const r = Math.min(255, (num >> 16) + 40)
-  const g = Math.min(255, ((num >> 8) & 0x00FF) + 40)
-  const b = Math.min(255, (num & 0x0000FF) + 40)
-  return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`
-}
+loadItems()
 
 function spin() {
   if (spinning.value || items.value.length === 0) return
@@ -100,55 +53,36 @@ function spin() {
 
   spinning.value = true
   result.value = ''
-  highlightIdx.value = -1
+  blinkIdx.value = -1
 
   const totalW = totalWeight.value
   const rand = Math.random() * totalW
-  let runningSum = 0
+  let sum = 0
   let winnerIdx = 0
   for (let i = 0; i < items.value.length; i++) {
-    runningSum += items.value[i].weight
-    if (rand <= runningSum) { winnerIdx = i; break }
+    sum += items.value[i].weight
+    if (rand <= sum) { winnerIdx = i; break }
   }
+  const winnerLabel = items.value[winnerIdx].label
+
+  const duration = 2500
+  const tick = 80
   const n = items.value.length
+  let step = 0
+  const maxSteps = Math.round(duration / tick)
+  let idx = 0
 
-  const extraSpins = 5 + Math.floor(Math.random() * 3)
-  let targetAngle = extraSpins * 2 * Math.PI + Math.random() * 2 * Math.PI
-
-  // 落在 winner 的扇区
-  let winAngle = 0
-  for (let i = 0; i < winnerIdx; i++) winAngle += (items.value[i].weight / 100) * 2 * Math.PI
-  const winMid = winAngle + (items.value[winnerIdx].weight / 100) * Math.PI
-  // 指针在顶部 (270deg = -PI/2)，扇形在 clockwise 方向
-  const pointerAngle = -Math.PI / 2
-  targetAngle += (2 * Math.PI - (winMid - pointerAngle) % (2 * Math.PI)) % (2 * Math.PI)
-
-  const startAngle = offsetAngle.value
-  const delta = targetAngle
-  const duration = 3000
-  const startTime = Date.now()
-  const tick = 50
-
-  let flashIdx = 0
   const timer = setInterval(() => {
-    const elapsed = Date.now() - startTime
-    const progress = Math.min(elapsed / duration, 1)
-    const eased = 1 - Math.pow(1 - progress, 3)
-    offsetAngle.value = startAngle + delta * eased
-    flashIdx = (flashIdx + 1) % n
-    highlightIdx.value = flashIdx
+    step++
+    idx = (idx + 1) % n
+    blinkIdx.value = idx
 
-    if (progress >= 1) {
+    // 减速
+    if (step >= maxSteps) {
       clearInterval(timer)
-      highlightIdx.value = winnerIdx
-      offsetAngle.value = startAngle + delta
-      drawWheel()
-      nextTick(() => {
-        result.value = items.value[winnerIdx].label
-        spinning.value = false
-      })
-    } else {
-      drawWheel()
+      blinkIdx.value = winnerIdx
+      result.value = winnerLabel
+      spinning.value = false
     }
   }, tick)
 }
@@ -172,7 +106,6 @@ async function deleteItem(item: WheelItem) {
   const ok = await uni.showModal({ title: '确认删除', content: `删除「${item.label}」？` })
   if (!ok.confirm) return
   items.value = items.value.filter(i => i._id !== item._id)
-  nextTick(() => drawWheel())
   try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
     if (!res.result.success) { loadItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
@@ -186,7 +119,7 @@ async function saveWeight(item: WheelItem) {
     const res: any = await wx.cloud.callFunction({
       name: 'wheelItemUpdate', data: { itemId: item._id, weight: editingWeight.value }
     })
-    if (res.result.success) { item.weight = editingWeight.value; editingId.value = ''; nextTick(() => drawWheel()) }
+    if (res.result.success) { item.weight = editingWeight.value; editingId.value = '' }
     else { uni.showToast({ title: res.result.error || '更新失败', icon: 'none' }) }
   } catch { uni.showToast({ title: '更新失败', icon: 'none' }) }
 }
@@ -212,13 +145,22 @@ async function clearAll() {
       <text v-if="items.length > 0" class="ws-clear" @tap="clearAll">🗑️ 清空</text>
     </view>
 
-    <!-- 转盘：canvas 饼图 + 固定指针 -->
+    <!-- 轮盘 -->
     <view class="wheel-stage" v-if="items.length > 0">
-      <canvas canvas-id="wheelCanvas" class="wheel-canvas" :style="{ width: canvasSize * 2 + 'rpx', height: canvasSize * 2 + 'rpx' }"></canvas>
-      <!-- 指针（triangle） -->
-      <view class="pointer-tri"></view>
-      <view class="spin-btn" :class="{ off: spinning }" @tap="spin">
-        <text class="sb-text">抽奖</text>
+      <view class="wheel-ring">
+        <view
+          v-for="(item, i) in items" :key="item._id"
+          class="wheel-slice"
+          :class="{ hl: blinkIdx === i }"
+          :style="sliceStyles[i]"
+        >
+          <text class="slice-label">{{ item.label }}</text>
+        </view>
+      </view>
+      <!-- 指针 -->
+      <view class="ptr"></view>
+      <view class="btn" :class="{ off: spinning }" @tap="spin">
+        <text class="btn-text">抽奖</text>
       </view>
     </view>
 
@@ -263,28 +205,37 @@ async function clearAll() {
 
 .wheel-stage {
   position: relative; display: flex; align-items: center; justify-content: center;
-  width: 600rpx; height: 600rpx; margin: 0 auto 16rpx;
+  width: 480rpx; height: 480rpx; margin: 0 auto 16rpx;
 }
-.wheel-canvas { width: 600rpx; height: 600rpx; border-radius: 50%; box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.1); }
+.wheel-ring { position: relative; width: 400rpx; height: 400rpx; border-radius: 50%; border: 6rpx solid #eee; background: #fafafa; }
+.wheel-slice {
+  position: absolute; top: 50%; left: 50%;
+  width: 140rpx; height: 46rpx; margin-left: -70rpx; margin-top: -23rpx;
+  transform-origin: center center; border-radius: 10rpx;
+  display: flex; align-items: center; justify-content: center;
+  border: 3rpx solid transparent; transition: border-color 0.1s;
+}
+.wheel-slice.hl { border-color: #FFD700; box-shadow: 0 0 14rpx rgba(255,215,0,0.6); }
+.slice-label { font-size: 20rpx; color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; max-width: 120rpx; }
 
-.pointer-tri {
-  position: absolute; top: 2rpx; left: 50%; transform: translateX(-50%);
+.ptr {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
   width: 0; height: 0;
-  border-left: 22rpx solid transparent;
-  border-right: 22rpx solid transparent;
-  border-top: 36rpx solid #F44336;
+  border-left: 20rpx solid transparent;
+  border-right: 20rpx solid transparent;
+  border-top: 32rpx solid #F44336;
   z-index: 2;
 }
 
-.spin-btn {
+.btn {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 100rpx; height: 100rpx; border-radius: 50%;
   background: linear-gradient(135deg, #FF9800, #FFB74D);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4rpx 20rpx rgba(255,152,0,0.45); z-index: 2;
 }
-.spin-btn.off { opacity: 0.5; pointer-events: none; }
-.sb-text { font-size: 26rpx; color: #fff; font-weight: 700; }
+.btn.off { opacity: 0.5; pointer-events: none; }
+.btn-text { font-size: 26rpx; color: #fff; font-weight: 700; }
 
 .ws-empty { text-align: center; padding: 40rpx 0; }
 .wse-icon { font-size: 48rpx; display: block; margin-bottom: 12rpx; }
