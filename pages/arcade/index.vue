@@ -376,15 +376,16 @@ onShow(() => { loadArcadeData() })
 .wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-arrow {
   width:0; height:0;
-  border-left:16rpx solid transparent;
-  border-right:16rpx solid transparent;
-  border-bottom:50rpx solid #F44336;
-  margin-bottom:4rpx;
+  border-left:28rpx solid transparent;
+  border-right:28rpx solid transparent;
+  border-bottom:70rpx solid #F44336;
+  margin-bottom:-6rpx;
+  filter:drop-shadow(0 4rpx 8rpx rgba(0,0,0,0.3));
 }
 .wh-btn-t {
   background:linear-gradient(135deg,#FF9800,#FFB74D);
-  border-radius:24rpx; padding:8rpx 20rpx;
-  font-size:22rpx; color:#fff; font-weight:700;
+  border-radius:28rpx; padding:10rpx 26rpx;
+  font-size:24rpx; color:#fff; font-weight:700;
   box-shadow:0 4rpx 16rpx rgba(255,152,0,0.4);
 }
 
