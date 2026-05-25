@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 
 const store = useAppStore()
-const activeTab = ref<'shop' | 'wheel'>('shop')
+const activeTab = ref<'shop' | 'wheel' | 'scratch'>('shop')
 
 // ---- 小卖部 ----
 const shopItems = ref<any[]>([])
@@ -38,12 +38,11 @@ const wEditWeight = ref(1)
 const totalWt = computed(() => wheelItems.value.reduce((s, i) => s + (i.weight || 1), 0))
 
 function loadWheelItems() {
-  if (!store.coupleId) return
-  wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: store.coupleId } }).then(
-    (res: any) => {
-      if (res.result.success) { wheelItems.value = res.result.items; nextTick(() => drawWheelOld()) }
-    }
-  ).catch(() => {})
+  try {
+    const saved = uni.getStorageSync('wheel_items')
+    if (saved && Array.isArray(saved)) wheelItems.value = saved
+  } catch {}
+  nextTick(() => drawWheelOld())
 }
 
 function drawWheelOld() {
@@ -147,61 +146,82 @@ function wSpin() {
   }, tick)
 }
 
-async function wAdd() {
+function saveWheelStorage() {
+  uni.setStorageSync('wheel_items', wheelItems.value)
+}
+
+function wAdd() {
   const label = wNewLabel.value.trim()
   if (!label) { uni.showToast({ title: '请输入选项', icon: 'none' }); return }
-  if (!store.coupleId) return
   const weight = Math.max(1, Math.floor(Number(wNewWeight.value)) || 1)
+  if (wheelItems.value.length >= 20) { uni.showToast({ title: '最多20个选项', icon: 'none' }); return }
   wNewLabel.value = ''
   wNewWeight.value = 1
-  const tmpId = '_' + Date.now()
-  wheelItems.value.push({ _id: tmpId, label, weight } as any)
+  wheelItems.value.push({ _id: '_' + Date.now(), label, weight })
+  saveWheelStorage()
   nextTick(() => drawWheelOld())
-  try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label, weight } })
-    if (res.result.success) loadWheelItems()
-    else { wheelItems.value = wheelItems.value.filter(i => i._id !== tmpId); drawWheelOld(); uni.showToast({ title: res.result.error || '添加失败', icon: 'none' }) }
-  } catch { wheelItems.value = wheelItems.value.filter(i => i._id !== tmpId); drawWheelOld(); uni.showToast({ title: '添加失败', icon: 'none' }) }
 }
 
 async function wDelete(item: WItem) {
   const ok = await uni.showModal({ title: '确认删除', content: `删除「${item.label}」？` })
   if (!ok.confirm) return
   wheelItems.value = wheelItems.value.filter(i => i._id !== item._id)
+  saveWheelStorage()
   nextTick(() => drawWheelOld())
-    try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
-    if (!res.result.success) { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
-  } catch { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
 }
 
 async function wClear() {
-  if (!store.coupleId) return
   const ok = await uni.showModal({ title: '清空全部', content: '确定清空所有选项吗？' })
   if (!ok.confirm) return
   wheelItems.value = []
+  saveWheelStorage()
   nextTick(() => drawWheelOld())
-    try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: store.coupleId } })
-    if (!res.result.success) uni.showToast({ title: '清空失败', icon: 'none' })
-  } catch { uni.showToast({ title: '清空失败', icon: 'none' }) }
 }
 
 function startEdit(item: WItem) { wEditId.value = item._id; wEditWeight.value = item.weight || 1 }
-async function saveWeight(item: WItem) {
+function saveWeight(item: WItem) {
   if (wEditWeight.value === (item.weight || 1)) { wEditId.value = ''; return }
   const val = Math.max(1, Math.floor(Number(wEditWeight.value)) || 1)
-  try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemUpdate', data: { itemId: item._id, weight: val } })
-    if (res.result.success) { item.weight = val; wEditId.value = ''; drawWheelOld() }
-    else { uni.showToast({ title: res.result.error || '更新失败', icon: 'none' }) }
-  } catch { uni.showToast({ title: '更新失败', icon: 'none' }) }
+  item.weight = val
+  wEditId.value = ''
+  saveWheelStorage()
+  drawWheelOld()
 }
 
-// 切到转盘 tab 时加载数据
-watch(activeTab, (v) => { if (v === 'wheel') loadWheelItems() })
+// ---- 刮刮卡 ----
+const scMax = ref(100)
+const scExp = ref(3)
+const scShowSet = ref(false)
+const scWinNum = ref(0)
+interface ScCell { num: number; amount: number; open: boolean }
+const scGrid = ref<ScCell[][]>([])
+const scDone = ref(false)
+const scWin = ref(0)
+const scOpen = ref(0)
 
-onShow(() => { loadArcadeData() })
+function scLoadSet() { try { const s = uni.getStorageSync('scratch_settings'); if (s) { scMax.value = s.maxAmount || 100; scExp.value = s.exponent || 3 } } catch {} }
+function scSaveSet() { uni.setStorageSync('scratch_settings', { maxAmount: scMax.value, exponent: scExp.value }); scShowSet.value = false; scGen() }
+function scRand(): number { return Math.max(1, Math.round(scMax.value * Math.pow(Math.random(), scExp.value))) }
+function scGen() {
+  scDone.value = false; scWin.value = 0; scOpen.value = 0
+  scWinNum.value = Math.floor(Math.random() * 10)
+  const g: ScCell[][] = []
+  for (let r = 0; r < 4; r++) { g.push([]); for (let c = 0; c < 4; c++) g[r].push({ num: Math.floor(Math.random() * 10), amount: scRand(), open: false }) }
+  scGrid.value = g
+}
+function scTap(r: number, c: number) {
+  if (scDone.value) return
+  const cell = scGrid.value[r]?.[c]; if (!cell || cell.open) return
+  cell.open = true; scOpen.value++
+  if (cell.num === scWinNum.value) scWin.value += cell.amount
+  if (scOpen.value >= 16) scDone.value = true
+}
+
+// 切到转盘/刮刮卡 tab 时加载数据
+watch(activeTab, (v) => { if (v === 'wheel') loadWheelItems() })
+onMounted(() => { scLoadSet(); scGen() })
+
+onShow(() => { loadArcadeData(); loadWheelItems() })
 
 async function onShopDelete(item: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `确定删除「${item.name}」吗？` })
@@ -256,7 +276,7 @@ async function submitShopItem() {
   }
 }
 
-onShow(() => { loadArcadeData() })
+onShow(() => { loadArcadeData(); loadWheelItems() })
 </script>
 
 <template>
@@ -265,6 +285,7 @@ onShow(() => { loadArcadeData() })
     <view class="sub-tabs">
       <view class="sub-tab" :class="{ active: activeTab === 'shop' }" @tap="activeTab = 'shop'">🛒 小卖部</view>
       <view class="sub-tab" :class="{ active: activeTab === 'wheel' }" @tap="activeTab = 'wheel'">🎡 转盘</view>
+      <view class="sub-tab" :class="{ active: activeTab === 'scratch' }" @tap="activeTab = 'scratch'">💳 刮刮卡</view>
     </view>
 
     <!-- 小卖部 -->
@@ -318,6 +339,76 @@ onShow(() => { loadArcadeData() })
             </template>
             <text v-else class="whc-wt" @tap="startEdit(item)">{{ ((item.weight || 1) / totalWt * 100).toFixed(0) }}%</text>
             <text class="whc-del" @tap="wDelete(item)">✕</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 刮刮卡 -->
+    <view class="tab-content" v-if="activeTab === 'scratch'">
+      <view class="sc-header">
+        <text class="sc-title">刮刮卡</text>
+        <text class="sc-gear" @tap="scShowSet = true">⚙️ 设置</text>
+      </view>
+      <view class="sc-wn">
+        <text class="sc-wn-label">🎯 中奖号</text>
+        <text class="sc-wn-num">{{ scWinNum }}</text>
+        <text class="sc-wn-hint">刮到相同数字即中奖</text>
+      </view>
+      <view class="sc-grid">
+        <view class="sc-row" v-for="(row, ri) in scGrid" :key="ri">
+          <view class="sc-cell" v-for="(cell, ci) in row" :key="ci" @tap="scTap(ri, ci)">
+            <view v-if="cell.open" class="sc-inner">
+              <view class="sc-top"><text class="sc-amount">¥{{ cell.amount }}</text></view>
+              <view class="sc-bot" :class="{ win: cell.num === scWinNum }">
+                <text class="sc-num">{{ cell.num }}</text>
+              </view>
+              <text v-if="cell.num === scWinNum" class="sc-tick">✓</text>
+            </view>
+            <view v-else class="sc-coat">
+              <text class="sc-coat-q">?</text>
+              <text class="sc-coat-h">刮开</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="sc-res" v-if="scDone">
+        <text v-if="scWin > 0" class="sc-res-t">🎉 赢了 ¥{{ scWin }}</text>
+        <text v-else class="sc-res-t">😅 再接再厉</text>
+      </view>
+      <view class="sc-res" v-else>
+        <text class="sc-res-p">已刮 {{ scOpen }}/16</text>
+      </view>
+      <view class="sc-btn-r">
+        <view class="sc-btn" :class="{ off: !scDone }" @tap="scGen">
+          <text class="sc-btn-t">{{ scDone ? '🔄 再来一张' : '继续刮 ⇡' }}</text>
+        </view>
+      </view>
+
+      <!-- 设置弹窗 -->
+      <view class="sc-modal" v-if="scShowSet" @tap="scShowSet = false">
+        <view class="sc-modal-b" @tap.stop>
+          <text class="sc-modal-tl">刮刮卡设置</text>
+          <view class="sc-fd">
+            <text class="sc-lb">奖金上限 ¥{{ scMax }}</text>
+            <view class="sc-sl-r">
+              <text class="sc-sl-v">10</text>
+              <slider class="sc-sl" :min="10" :max="500" :step="10" :value="scMax" @change="(e: any) => scMax = e.detail.value" activeColor="#FF9800" backgroundColor="#E0E0E0" block-size="20" />
+              <text class="sc-sl-v">500</text>
+            </view>
+          </view>
+          <view class="sc-fd">
+            <text class="sc-lb">难度：{{ scExp }}（越高越难中大奖）</text>
+            <view class="sc-sl-r">
+              <text class="sc-sl-v">易</text>
+              <slider class="sc-sl" :min="1" :max="8" :step="0.5" :value="scExp" @change="(e: any) => scExp = e.detail.value" activeColor="#FF9800" backgroundColor="#E0E0E0" block-size="20" />
+              <text class="sc-sl-v">难</text>
+            </view>
+            <text class="sc-hint">越难越少出现大奖</text>
+          </view>
+          <view class="sc-modal-bt">
+            <view class="sc-mb cancel" @tap="scShowSet = false">取消</view>
+            <view class="sc-mb save" @tap="scSaveSet">保存并重开</view>
           </view>
         </view>
       </view>
@@ -445,4 +536,46 @@ onShow(() => { loadArcadeData() })
 .whc-edt { width:64rpx; height:40rpx; border:1rpx solid #FFB800; border-radius:8rpx; font-size:20rpx; text-align:center; }
 .whc-ok { font-size:22rpx; color:#4CAF50; padding:4rpx; font-weight:700; }
 .whc-del { font-size:24rpx; color:#bbb; padding:4rpx; }
+
+/* ---- 刮刮卡 ---- */
+.sc-header { display:flex; justify-content:space-between; align-items:center; padding:0 16rpx 8rpx; }
+.sc-title { font-size:30rpx; font-weight:700; color:#333; }
+.sc-gear { font-size:22rpx; color:#FF9800; padding:8rpx 16rpx; background:rgba(255,152,0,0.08); border-radius:16rpx; }
+.sc-wn { display:flex; align-items:center; justify-content:center; gap:16rpx; padding:8rpx 0 12rpx; }
+.sc-wn-label { font-size:24rpx; color:#666; }
+.sc-wn-num { font-size:44rpx; font-weight:800; color:#E53935; }
+.sc-wn-hint { font-size:18rpx; color:#bbb; }
+.sc-grid { padding:0 16rpx; }
+.sc-row { display:flex; gap:10rpx; margin-bottom:10rpx; }
+.sc-cell { flex:1; aspect-ratio:1; }
+.sc-inner { width:100%; height:100%; border-radius:14rpx; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 2rpx 10rpx rgba(0,0,0,0.06); position:relative; }
+.sc-top { flex:1; display:flex; align-items:flex-end; padding-bottom:2rpx; }
+.sc-amount { font-size:18rpx; color:#795548; }
+.sc-bot { flex:1; display:flex; align-items:flex-start; }
+.sc-bot.win { background:rgba(76,175,80,0.08); border-radius:0 0 14rpx 14rpx; width:100%; justify-content:center; }
+.sc-num { font-size:26rpx; font-weight:700; color:#333; }
+.sc-tick { position:absolute; top:4rpx; right:8rpx; font-size:16rpx; color:#4CAF50; font-weight:700; }
+.sc-coat { width:100%; height:100%; border-radius:14rpx; background:linear-gradient(135deg,#BDBDBD 20%,#9E9E9E 80%); display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 2rpx 8rpx rgba(0,0,0,0.12); }
+.sc-coat-q { font-size:34rpx; color:#fff; font-weight:700; text-shadow:0 2rpx 4rpx rgba(0,0,0,0.2); }
+.sc-coat-h { font-size:14rpx; color:rgba(255,255,255,0.65); margin-top:2rpx; }
+.sc-res { text-align:center; padding:12rpx 0; height:48rpx; display:flex; align-items:center; justify-content:center; }
+.sc-res-t { font-size:28rpx; color:#333; }
+.sc-res-p { font-size:20rpx; color:#ccc; }
+.sc-btn-r { display:flex; justify-content:center; padding:4rpx 0 16rpx; }
+.sc-btn { display:inline-flex; align-items:center; justify-content:center; padding:14rpx 44rpx; background:linear-gradient(135deg,#FF9800,#FFB74D); border-radius:44rpx; }
+.sc-btn.off { opacity:0.35; }
+.sc-btn-t { font-size:26rpx; color:#fff; font-weight:700; }
+.sc-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:100; display:flex; align-items:center; justify-content:center; }
+.sc-modal-b { width:620rpx; background:#fff; border-radius:24rpx; padding:36rpx 32rpx; }
+.sc-modal-tl { font-size:32rpx; font-weight:700; color:#333; display:block; margin-bottom:24rpx; }
+.sc-fd { margin-bottom:20rpx; }
+.sc-lb { font-size:24rpx; color:#666; margin-bottom:6rpx; display:block; }
+.sc-sl-r { display:flex; align-items:center; gap:10rpx; }
+.sc-sl-v { font-size:18rpx; color:#999; flex-shrink:0; width:28rpx; text-align:center; }
+.sc-sl { flex:1; }
+.sc-hint { font-size:18rpx; color:#bbb; margin-top:4rpx; display:block; }
+.sc-modal-bt { display:flex; gap:14rpx; margin-top:8rpx; }
+.sc-mb { flex:1; text-align:center; padding:20rpx 0; border-radius:16rpx; font-size:26rpx; font-weight:600; }
+.sc-mb.cancel { background:#F5F5F5; color:#666; }
+.sc-mb.save { background:linear-gradient(135deg,#FF9800,#FFB74D); color:#fff; }
 </style>
