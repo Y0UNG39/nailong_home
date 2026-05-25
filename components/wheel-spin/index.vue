@@ -114,7 +114,7 @@ async function clearAll() {
           <text class="seg-label">{{ item.label }}</text>
         </view>
         <view class="spin-btn" :class="{ disabled: spinning }" @tap="spin">
-          <text>{{ spinning ? '...' : '抽奖' }}</text>
+          <text class="spin-text">{{ spinning ? '...' : '抽奖' }}</text>
         </view>
       </view>
     </view>
@@ -175,7 +175,7 @@ async function clearAll() {
   box-shadow: 0 4rpx 16rpx rgba(255,152,0,0.4);
   z-index: 2;
 }
-.spin-btn text { font-size: 26rpx; color: #fff; font-weight: 700; }
+.spin-text { font-size: 26rpx; color: #fff; font-weight: 700; }
 .spin-btn.disabled { opacity: 0.5; pointer-events: none; }
 
 .result-area { text-align: center; padding: 12rpx; }
