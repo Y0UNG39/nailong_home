@@ -24,7 +24,8 @@ function loadArcadeData() {
 const COLORS = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40',
   '#48BB78','#F6AD55','#63B3ED','#B794F4','#FC8181','#68D391','#FBD38D',
   '#FF6B6B','#C9CBCF','#E7E9ED']
-const WHEEL_SIZE = 300 // canvas 物理像素
+const WHEEL_SIZE = 300
+const wArrow = ref(0)
 interface WItem { _id: string; label: string }
 const wheelItems = ref<WItem[]>([])
 const wNewLabel = ref('')
@@ -69,7 +70,6 @@ function drawWheelOld() {
     ctx.fillText(wheelItems.value[i].label.length > 5 ? wheelItems.value[i].label.slice(0, 4) + '..' : wheelItems.value[i].label, 0, 0)
     ctx.restore()
   }
-  ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.setFillStyle('#333'); ctx.fill()
   ctx.draw()
 }
 
@@ -86,10 +86,19 @@ function wSpin() {
   const n = wheelItems.value.length
   const wi = Math.floor(Math.random() * n)
   const label = wheelItems.value[wi].label
+  const seg = 360 / n
 
-  const dur = 2500; const tick = 80; const s = Date.now(); let fi = 0
+  // 指针目标：转到 winner 扇区正中
+  const spins = 5 + Math.floor(Math.random() * 3)
+  const target = spins * 360 + wi * seg + seg / 2
+
+  const dur = 2500; const tick = 60; const s = Date.now(); let fi = 0
+  const startA = wArrow.value
+
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
+    const e = 1 - Math.pow(1 - p, 3)
+    wArrow.value = startA + e * target
     fi = (fi + 1) % n; wBlink.value = fi; drawWheelOld()
     if (p >= 1) {
       clearInterval(timer)
@@ -106,7 +115,7 @@ async function wAdd() {
   wNewLabel.value = ''
   try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label } })
-    if (res.result.success) { loadWheelItems(); nextTick(() => drawWheel()) }
+    if (res.result.success) loadWheelItems()
     else { uni.showToast({ title: res.result.error || '添加失败', icon: 'none' }) }
   } catch { uni.showToast({ title: '添加失败', icon: 'none' }) }
 }
@@ -126,6 +135,7 @@ async function wClear() {
   const ok = await uni.showModal({ title: '清空全部', content: '确定清空所有选项吗？' })
   if (!ok.confirm) return
   wheelItems.value = []
+  nextTick(() => drawWheelOld())
     try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: store.coupleId } })
     if (!res.result.success) uni.showToast({ title: '清空失败', icon: 'none' })
@@ -236,9 +246,9 @@ onShow(() => { loadArcadeData() })
       <view class="wh-stage">
         <view class="wh-wheel">
           <canvas canvas-id="pieCanvas" class="pie-canvas"></canvas>
+          <view class="wh-arrow" :class="{ off: wSpinning }" :style="{ transform: 'rotate(' + wArrow + 'deg)' }"></view>
         </view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
-          <view class="wh-arrow"></view>
           <text class="wh-btn-t">抽奖</text>
         </view>
       </view>
@@ -356,24 +366,24 @@ onShow(() => { loadArcadeData() })
 }
 .wh-wheel { position:relative; width:600rpx; height:600rpx; }
 .pie-canvas { width:600rpx; height:600rpx; }
-.wh-btn {
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  display:flex; flex-direction:column; align-items:center;
-  z-index:2;
-}
-.wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-arrow {
-  width:0; height:0;
+  position:absolute; top:50%; left:50%;
+  width:0; height:0; margin-left:-28rpx; margin-top:-70rpx;
   border-left:28rpx solid transparent;
   border-right:28rpx solid transparent;
-  border-bottom:70rpx solid #F44336;
-  margin-bottom:-6rpx;
+  border-bottom:90rpx solid #F44336;
+  transform-origin:28rpx 70rpx;
+  z-index:2;
   filter:drop-shadow(0 4rpx 8rpx rgba(0,0,0,0.3));
 }
+.wh-arrow.off { opacity:0.5; }
+.wh-btn { text-align:center; margin-top:16rpx; }
+.wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-btn-t {
+  display:inline-block;
   background:linear-gradient(135deg,#FF9800,#FFB74D);
-  border-radius:28rpx; padding:10rpx 26rpx;
-  font-size:24rpx; color:#fff; font-weight:700;
+  border-radius:28rpx; padding:14rpx 48rpx;
+  font-size:28rpx; color:#fff; font-weight:700;
   box-shadow:0 4rpx 16rpx rgba(255,152,0,0.4);
 }
 
