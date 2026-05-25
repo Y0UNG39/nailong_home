@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
+import WheelSpin from '@/components/wheel-spin/index.vue'
 
 const store = useAppStore()
 const activeTab = ref<'shop' | 'wheel'>('shop')
@@ -109,7 +110,7 @@ onShow(() => { loadArcadeData() })
 
     <!-- 转盘 -->
     <view class="tab-content" v-if="activeTab === 'wheel'">
-      <wheel-spin :coupleId="store.coupleId" />
+      <WheelSpin :coupleId="store.coupleId" />
     </view>
 
     <!-- 上架商品弹窗 -->
