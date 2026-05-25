@@ -250,6 +250,7 @@ onShow(() => { loadArcadeData() })
           <canvas id="pieCanvas" type="2d" class="pie-canvas"></canvas>
         </view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
+          <view class="wh-arrow"></view>
           <text class="wh-btn-t">抽奖</text>
         </view>
       </view>
@@ -369,13 +370,23 @@ onShow(() => { loadArcadeData() })
 .pie-canvas { width:600rpx; height:600rpx; }
 .wh-btn {
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:100rpx; height:100rpx; border-radius:50%;
-  background:linear-gradient(135deg,#FF9800,#FFB74D);
-  display:flex; align-items:center; justify-content:center;
-  box-shadow:0 4rpx 20rpx rgba(255,152,0,0.45); z-index:2;
+  display:flex; flex-direction:column; align-items:center;
+  z-index:2;
 }
 .wh-btn.off { opacity:0.5; pointer-events:none; }
-.wh-btn-t { font-size:26rpx; color:#fff; font-weight:700; }
+.wh-arrow {
+  width:0; height:0;
+  border-left:16rpx solid transparent;
+  border-right:16rpx solid transparent;
+  border-bottom:50rpx solid #F44336;
+  margin-bottom:4rpx;
+}
+.wh-btn-t {
+  background:linear-gradient(135deg,#FF9800,#FFB74D);
+  border-radius:24rpx; padding:8rpx 20rpx;
+  font-size:22rpx; color:#fff; font-weight:700;
+  box-shadow:0 4rpx 16rpx rgba(255,152,0,0.4);
+}
 
 .wh-result { text-align:center; padding:12rpx; }
 .whr-text { font-size:28rpx; color:#FF9800; }
