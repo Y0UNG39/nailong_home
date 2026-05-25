@@ -375,13 +375,12 @@ onShow(() => { loadArcadeData() })
 .pie-canvas { width:600rpx; height:600rpx; }
 .wh-arrow {
   position:absolute; top:50%; left:50%;
-  width:0; height:0; margin-left:-10rpx; margin-top:-250rpx;
-  border-left:10rpx solid transparent;
-  border-right:10rpx solid transparent;
-  border-top:250rpx solid #F44336;
-  transform-origin:10rpx 250rpx;
+  width:6rpx; height:280rpx; margin-left:-3rpx; margin-top:-280rpx;
+  background:linear-gradient(to bottom, #F44336 60%, #FFB74D);
+  border-radius:3rpx;
+  transform-origin:3rpx 280rpx;
   z-index:2;
-  filter:drop-shadow(0 2rpx 6rpx rgba(0,0,0,0.3));
+  box-shadow:0 2rpx 8rpx rgba(0,0,0,0.25);
 }
 .wh-arrow.off { opacity:0.5; }
 .wh-btn { text-align:center; margin-top:20rpx; width:100%; }
