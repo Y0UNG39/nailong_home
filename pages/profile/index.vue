@@ -255,7 +255,7 @@ const stats = reactive([
 
     <!-- 我的券包 -->
     <view class="menu-card" @tap="showCoupons = true">
-      <view class="m-left"><text class="m-icon">🎫</text><text class="m-title">我的券包</text></view>
+      <view class="m-left"><text class="m-icon">🎫</text><text class="m-title">券包</text></view>
       <view class="m-right">
         <view class="m-badge" v-if="unusedCount > 0">{{ unusedCount }}张可用</view>
         <text class="m-arrow">›</text>
@@ -272,7 +272,7 @@ const stats = reactive([
     <view v-if="showCoupons" class="overlay" @tap="showCoupons = false">
       <view class="panel" @tap.stop>
         <view class="panel-header">
-          <text class="panel-title">🎫 我的券包</text>
+          <text class="panel-title">🎫 券包</text>
           <view class="close-btn" @tap="showCoupons = false"><text>✕</text></view>
         </view>
         <view class="coupon-tabs">

@@ -12,8 +12,6 @@ export const TASK_TYPE = {
   WEEKLY: '每周'
 } as const
 
-export const GACHA_COST = 2
-
 export const ACHIEVEMENTS = [
   { id: 'sign7', category: 'persistence', name: '签到达人', desc: '连续签到7天', icon: '🔥', color: '#F44336', condition: { type: 'signDays', value: 7 } },
   { id: 'sign30', category: 'persistence', name: '签到王者', desc: '连续签到30天', icon: '🔥', color: '#F44336', condition: { type: 'signDays', value: 30 } },
@@ -25,7 +23,6 @@ export const ACHIEVEMENTS = [
   { id: 'day100', category: 'memorial', name: '百日纪念', desc: '在一起100天', icon: '💯', color: '#9C27B0', condition: { type: 'days', value: 100 } },
   { id: 'day365', category: 'memorial', name: '周年纪念', desc: '在一起365天', icon: '🎂', color: '#9C27B0', condition: { type: 'days', value: 365 } },
   { id: 'day1000', category: 'memorial', name: '千日纪念', desc: '在一起1000天', icon: '💎', color: '#9C27B0', condition: { type: 'days', value: 1000 } },
-  { id: 'gacha50', category: 'hidden', name: '欧皇降临', desc: '扭蛋50次', icon: '🎰', color: '#FFD700', condition: { type: 'gachaCount', value: 50 } },
   { id: 'shop10', category: 'hidden', name: '购物达人', desc: '购买小卖部10次', icon: '🛒', color: '#FFD700', condition: { type: 'shopCount', value: 10 } },
   { id: 'dream5', category: 'hidden', name: '梦想成真', desc: '完成5个梦想', icon: '⭐', color: '#FFD700', condition: { type: 'dreamCount', value: 5 } }
 ] as const
