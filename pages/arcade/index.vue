@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
-import { onShow, onReady } from '@dcloudio/uni-app'
+import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 
 const store = useAppStore()
@@ -24,8 +24,6 @@ function loadArcadeData() {
 const COLORS = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40',
   '#48BB78','#F6AD55','#63B3ED','#B794F4','#FC8181','#68D391','#FBD38D',
   '#FF6B6B','#C9CBCF','#E7E9ED']
-const canvasW = 300
-
 interface WItem { _id: string; label: string; weight: number }
 const wheelItems = ref<WItem[]>([])
 const wNewLabel = ref('')
@@ -33,68 +31,37 @@ const wNewWeight = ref(10)
 const wSpinning = ref(false)
 const wResult = ref('')
 const wBlink = ref(-1)
-const wOffset = ref(0)
+const wRotate = ref(0)
 const wEditId = ref('')
 const wEditWeight = ref(0)
 
 const wTotal = computed(() => wheelItems.value.reduce((s, i) => s + i.weight, 0))
 const wReady = computed(() => wTotal.value === 100)
 
+const radius = 210
+
+// 扇区样式：每个选项建一个彩色条，旋转让中间对准圆心外侧
+const wSlices = computed(() => {
+  const n = wheelItems.value.length
+  if (n === 0) return []
+  let a = 0
+  return wheelItems.value.map((item, i) => {
+    const deg = (item.weight / 100) * 360
+    const mid = a + deg / 2
+    a += deg
+    return {
+      background: COLORS[i % COLORS.length],
+      transform: `rotate(${mid}deg) translateY(-${radius}rpx)`,
+      hl: wBlink.value === i
+    }
+  })
+})
+
 function loadWheelItems() {
   if (!store.coupleId) return
   wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: store.coupleId } }).then(
     (res: any) => { if (res.result.success) wheelItems.value = res.result.items }
   ).catch(() => {})
-}
-
-function drawWheel() {
-  const ctx = uni.createCanvasContext('wheelCanvas')
-  if (!ctx) return
-  const n = wheelItems.value.length
-  if (n === 0) { ctx.clearRect(0, 0, canvasW, canvasW); ctx.draw(); return }
-  const cx = canvasW / 2; const cy = canvasW / 2; const r = cx - 8
-
-  ctx.clearRect(0, 0, canvasW, canvasW)
-  let a = -Math.PI / 2 + wOffset.value
-
-  for (let i = 0; i < n; i++) {
-    const s = (wheelItems.value[i].weight / 100) * Math.PI * 2
-    const ea = a + s
-    ctx.beginPath()
-    ctx.moveTo(cx, cy)
-    ctx.arc(cx, cy, r, a, ea)
-    ctx.closePath()
-    const hex = wBlink.value === i ? lighten(COLORS[i % COLORS.length]) : COLORS[i % COLORS.length]
-    ctx.setFillStyle(hex)
-    ctx.fill()
-    ctx.setStrokeStyle('#fff')
-    ctx.setLineWidth(1)
-    ctx.stroke()
-
-    const ma = a + s / 2
-    const lr = r * 0.68
-    ctx.save()
-    ctx.translate(cx + Math.cos(ma) * lr, cy + Math.sin(ma) * lr)
-    ctx.rotate(ma + Math.PI / 2)
-    ctx.setFillStyle('#fff')
-    ctx.setFontSize(9)
-    ctx.setTextAlign('center')
-    ctx.setTextBaseline('middle')
-    const txt = wheelItems.value[i].label
-    ctx.fillText(txt.length > 6 ? txt.slice(0, 5) + '..' : txt, 0, 0)
-    ctx.restore()
-    a = ea
-  }
-
-  ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.setFillStyle('#333'); ctx.fill()
-  ctx.draw()
-}
-
-function lighten(hex: string): string {
-  const n = parseInt(hex.replace('#', ''), 16)
-  const inc = (c: number) => Math.min(255, c + 50)
-  const r = inc(n >> 16), g = inc((n >> 8) & 0xFF), b = inc(n & 0xFF)
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
 function wSpin() {
@@ -108,17 +75,15 @@ function wSpin() {
   for (let i = 0; i < wheelItems.value.length; i++) { sum += wheelItems.value[i].weight; if (rand <= sum) { wi = i; break } }
 
   const n = wheelItems.value.length
-  const dur = 3000; const tick = 50; const s = Date.now(); let fi = 0
+  const dur = 3000; const tick = 70; const s = Date.now(); let fi = 0
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
     const e = 1 - Math.pow(1 - p, 3)
-    wOffset.value = e * 6 * Math.PI
+    wRotate.value = e * 6 * 360
     fi = (fi + 1) % n; wBlink.value = fi
-    drawWheel()
     if (p >= 1) {
       clearInterval(timer)
-      wBlink.value = wi; wOffset.value = 0
-      drawWheel()
+      wRotate.value = 0; wBlink.value = wi
       nextTick(() => { wResult.value = wheelItems.value[wi].label; wSpinning.value = false })
     }
   }, tick)
@@ -140,8 +105,7 @@ async function wDelete(item: WItem) {
   const ok = await uni.showModal({ title: '确认删除', content: `删除「${item.label}」？` })
   if (!ok.confirm) return
   wheelItems.value = wheelItems.value.filter(i => i._id !== item._id)
-  nextTick(() => drawWheel())
-  try {
+    try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
     if (!res.result.success) { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
   } catch { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
@@ -162,18 +126,14 @@ async function wClear() {
   const ok = await uni.showModal({ title: '清空全部', content: '确定清空所有选项吗？' })
   if (!ok.confirm) return
   wheelItems.value = []
-  nextTick(() => drawWheel())
-  try {
+    try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: store.coupleId } })
     if (!res.result.success) uni.showToast({ title: '清空失败', icon: 'none' })
   } catch { uni.showToast({ title: '清空失败', icon: 'none' }) }
 }
 
-// 切到转盘 tab 时初始化 canvas
-watch(activeTab, (v) => {
-  if (v === 'wheel') { loadWheelItems(); nextTick(() => setTimeout(() => drawWheel(), 300)) }
-})
-onReady(() => { if (activeTab.value === 'wheel') setTimeout(() => drawWheel(), 300) })
+// 切到转盘 tab 时加载数据
+watch(activeTab, (v) => { if (v === 'wheel') loadWheelItems() })
 
 onShow(() => { loadArcadeData() })
 
@@ -274,9 +234,18 @@ onShow(() => { loadArcadeData() })
         <text v-if="wheelItems.length > 0" class="wh-clear" @tap="wClear">🗑️ 清空</text>
       </view>
 
-      <!-- Canvas 圆盘 -->
+      <!-- CSS 旋转圆盘 -->
       <view class="wh-stage" v-if="wheelItems.length > 0">
-        <canvas class="wh-canvas" canvas-id="wheelCanvas" :style="{ width: canvasW * 2 + 'rpx', height: canvasW * 2 + 'rpx' }"></canvas>
+        <view class="wh-wheel" :style="{ transform: 'rotate(' + wRotate + 'deg)' }">
+          <view
+            v-for="(s, i) in wSlices" :key="wheelItems[i]._id"
+            class="wh-slice"
+            :class="{ hl: s.hl }"
+            :style="{ background: s.background, transform: s.transform }"
+          >
+            <text class="whs-label">{{ wheelItems[i].label }}</text>
+          </view>
+        </view>
         <view class="wh-ptr"></view>
         <view class="wh-btn" :class="{ off: wSpinning }" @tap="wSpin">
           <text class="wh-btn-t">抽奖</text>
@@ -407,7 +376,20 @@ onShow(() => { loadArcadeData() })
   position:relative; display:flex; align-items:center; justify-content:center;
   width:600rpx; height:600rpx; margin:0 auto 16rpx;
 }
-.wh-canvas { width:600rpx; height:600rpx; border-radius:50%; box-shadow:0 4rpx 24rpx rgba(0,0,0,0.1); }
+.wh-wheel {
+  position:relative; width:520rpx; height:520rpx; border-radius:50%;
+  border:6rpx solid #eee; background:#fafafa;
+  transition: none;
+}
+.wh-slice {
+  position:absolute; top:50%; left:50%;
+  width:160rpx; height:48rpx; margin-left:-80rpx; margin-top:-24rpx;
+  transform-origin:center center; border-radius:10rpx;
+  display:flex; align-items:center; justify-content:center;
+  border:3rpx solid transparent; transition:border-color 0.1s;
+}
+.wh-slice.hl { border-color:#FFD700; box-shadow:0 0 16rpx rgba(255,215,0,0.7); }
+.whs-label { font-size:20rpx; color:#fff; font-weight:600; white-space:nowrap; overflow:hidden; max-width:130rpx; }
 .wh-ptr {
   position:absolute; top:2rpx; left:50%; transform:translateX(-50%);
   width:0; height:0;
