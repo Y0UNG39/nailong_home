@@ -56,31 +56,25 @@ function spin() {
   const startRot = wheelRotation.value - targetAngle
 
   let flashIdx = 0
-  const flashDur = 80
-  let lastFlash = 0
+  const tick = 50
 
-  function animate() {
+  const timer = setInterval(() => {
     const elapsed = Date.now() - startTime
     const progress = Math.min(elapsed / duration, 1)
     const eased = 1 - Math.pow(1 - progress, 3)
     const currentRot = startRot + targetAngle * eased
 
-    // 高亮闪烁
-    if (elapsed - lastFlash > flashDur * (1 + progress * 2)) {
-      flashIdx = (flashIdx + 1) % n
-      highlightIdx.value = flashIdx
-      lastFlash = elapsed
-    }
+    wheelRotation.value = currentRot
+    flashIdx = (flashIdx + 1) % n
+    highlightIdx.value = flashIdx
 
-    if (progress < 1) {
-      requestAnimationFrame(animate)
-    } else {
+    if (progress >= 1) {
+      clearInterval(timer)
       highlightIdx.value = winnerIdx
       result.value = winnerLabel
       spinning.value = false
     }
-  }
-  animate()
+  }, tick)
 }
 
 async function addItem() {
@@ -141,7 +135,7 @@ async function clearAll() {
       </view>
       <view class="pointer"></view>
       <view class="spin-btn" :class="{ off: spinning }" @tap="spin">
-        <text class="sb-text">{{ spinning ? '...' : '抽奖' }}</text>
+        <text class="sb-text">抽奖</text>
       </view>
     </view>
 
@@ -183,7 +177,6 @@ async function clearAll() {
 }
 .wheel-body {
   position: relative; width: 400rpx; height: 400rpx; border-radius: 50%;
-  transition: transform 2.5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
   border: 6rpx solid #eee; background: #fafafa;
 }
 .wheel-slice {
