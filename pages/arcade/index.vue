@@ -207,14 +207,6 @@ async function submitShopItem() {
   }
 }
 
-async function setBalance999() {
-  if (!store.coupleId) return
-  try {
-    const res = await wx.cloud.callFunction({ name: 'setBalanceTest', data: {} })
-    if (res.result.success) { store.setBalance(999); uni.showToast({ title: '余额已设为 999', icon: 'success' }) }
-  } catch { uni.showToast({ title: '失败', icon: 'none' }) }
-}
-
 onShow(() => { loadArcadeData() })
 </script>
 
@@ -225,9 +217,6 @@ onShow(() => { loadArcadeData() })
       <view class="sub-tab" :class="{ active: activeTab === 'shop' }" @tap="activeTab = 'shop'">🛒 小卖部</view>
       <view class="sub-tab" :class="{ active: activeTab === 'wheel' }" @tap="activeTab = 'wheel'">🎡 转盘</view>
     </view>
-
-    <!-- 内测：一键设余额 -->
-    <view class="test-btn" @tap="setBalance999"><text>🔧 余额设为999</text></view>
 
     <!-- 小卖部 -->
     <view class="tab-content" v-if="activeTab === 'shop'">
@@ -332,10 +321,6 @@ onShow(() => { loadArcadeData() })
 .sub-tab.active { background:#FFB800; color:#fff; font-weight:700; box-shadow:0 4rpx 12rpx rgba(255,184,0,0.25); }
 .tab-content { padding-bottom: 140rpx; }
 
-.test-btn {
-  background: rgba(255,255,255,0.6); border: 2rpx dashed #FFB800; border-radius: 16rpx;
-  padding: 16rpx 0; text-align: center; font-size: 24rpx; color: #FFB800; margin-bottom: 20rpx;
-}
 .shop-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .shop-col { width: calc(50% - 8rpx); box-sizing: border-box; }
 .fab { position:fixed; bottom:40rpx; right:40rpx; z-index:100; display:flex; align-items:center; background:linear-gradient(135deg,#FF9800,#FFB74D); padding:18rpx 32rpx; border-radius:48rpx; box-shadow:0 8rpx 24rpx rgba(255,152,0,0.35); font-size:26rpx; color:#fff; font-weight:600; }
