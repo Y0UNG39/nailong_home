@@ -116,11 +116,15 @@ async function wAdd() {
   if (!label) { uni.showToast({ title: '请输入选项', icon: 'none' }); return }
   if (!store.coupleId) return
   wNewLabel.value = ''
+  // 先加 UI，再后台同步
+  const tmpId = '_' + Date.now()
+  wheelItems.value.push({ _id: tmpId, label } as any)
+  nextTick(() => drawWheelOld())
   try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label } })
     if (res.result.success) loadWheelItems()
-    else { uni.showToast({ title: res.result.error || '添加失败', icon: 'none' }) }
-  } catch { uni.showToast({ title: '添加失败', icon: 'none' }) }
+    else { wheelItems.value = wheelItems.value.filter(i => i._id !== tmpId); drawWheelOld(); uni.showToast({ title: res.result.error || '添加失败', icon: 'none' }) }
+  } catch { wheelItems.value = wheelItems.value.filter(i => i._id !== tmpId); drawWheelOld(); uni.showToast({ title: '添加失败', icon: 'none' }) }
 }
 
 async function wDelete(item: WItem) {
@@ -365,20 +369,20 @@ onShow(() => { loadArcadeData() })
 .wh-clear { font-size:22rpx; color:#F44336; padding:4rpx 12rpx; border-radius:12rpx; background:rgba(244,67,54,0.08); }
 
 .wh-stage {
-  position:relative; display:flex; align-items:center; justify-content:center;
-  width:600rpx; height:600rpx; margin:0 auto 16rpx;
+  position:relative; display:flex; flex-direction:column; align-items:center;
+  width:600rpx; margin:0 auto 16rpx;
 }
 .wh-wheel { position:relative; width:600rpx; height:600rpx; }
 .pie-canvas { width:600rpx; height:600rpx; }
 .wh-arrow {
   position:absolute; top:50%; left:50%;
-  width:0; height:0; margin-left:-14rpx; margin-top:-210rpx;
-  border-left:14rpx solid transparent;
-  border-right:14rpx solid transparent;
-  border-bottom:200rpx solid #F44336;
-  transform-origin:14rpx 210rpx;
+  width:0; height:0; margin-left:-8rpx; margin-top:-280rpx;
+  border-left:8rpx solid transparent;
+  border-right:8rpx solid transparent;
+  border-bottom:250rpx solid #F44336;
+  transform-origin:8rpx 280rpx;
   z-index:2;
-  filter:drop-shadow(0 4rpx 12rpx rgba(0,0,0,0.3));
+  filter:drop-shadow(0 2rpx 8rpx rgba(0,0,0,0.35));
 }
 .wh-arrow.off { opacity:0.5; }
 .wh-btn { text-align:center; margin-top:20rpx; width:100%; }
