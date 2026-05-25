@@ -1,145 +1,54 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, getCurrentInstance } from 'vue'
+import { ref } from 'vue'
 
 const props = defineProps<{ coupleId: string | null }>()
 const emit = defineEmits<{ spinDone: [] }>()
 
-const COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#E7E9ED',
-  '#FF6B6B', '#48BB78', '#F6AD55', '#63B3ED', '#B794F4', '#FC8181', '#68D391', '#FBD38D']
+const COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+  '#48BB78', '#F6AD55', '#63B3ED', '#B794F4', '#FC8181', '#68D391', '#FBD38D',
+  '#FF6B6B', '#C9CBCF', '#E7E9ED']
 
 const items = ref<{ _id: string; label: string }[]>([])
 const newLabel = ref('')
 const spinning = ref(false)
 const result = ref('')
-const currentRotation = ref(0)
-const canvasReady = ref(false)
-const canvasWidth = 300
-const canvasHeight = 300
-
-let canvasCtx: any = null
+const highlightIdx = ref(-1)
 
 function loadItems() {
   if (!props.coupleId) return
   wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: props.coupleId } }).then(
     (res: any) => {
-      if (res.result.success) {
-        items.value = res.result.items
-        nextTick(() => redraw())
-      }
+      if (res.result.success) items.value = res.result.items
     }
   ).catch(() => {})
 }
-
-function redraw() {
-  if (canvasCtx) drawWheel(currentRotation.value)
-}
-
-function initCanvas() {
-  // 优先尝试 2d canvas
-  const query = uni.createSelectorQuery().in(getCurrentInstance() as any)
-  query.select('#wheelCanvas')
-    .fields({ node: true, size: true })
-    .exec((res: any) => {
-      const node = res && res[0]
-      if (node && node.node) {
-        const cvs = node.node
-        cvs.width = canvasWidth
-        cvs.height = canvasHeight
-        canvasCtx = cvs.getContext('2d')
-        canvasReady.value = true
-        drawWheel(0)
-      }
-    })
-}
-
-onMounted(() => {
-  loadItems()
-  nextTick(() => initCanvas())
-})
-
-function drawWheel(rotation: number) {
-  if (!canvasCtx || items.value.length === 0) return
-  const ctx = canvasCtx
-  const n = items.value.length
-  const cx = canvasWidth / 2
-  const cy = canvasHeight / 2
-  const r = cx - 10
-  const arcSize = (2 * Math.PI) / n
-
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-
-  for (let i = 0; i < n; i++) {
-    const startAngle = -Math.PI / 2 + i * arcSize + rotation
-    const endAngle = startAngle + arcSize
-
-    ctx.beginPath()
-    ctx.moveTo(cx, cy)
-    ctx.arc(cx, cy, r, startAngle, endAngle)
-    ctx.closePath()
-    ctx.fillStyle = COLORS[i % COLORS.length]
-    ctx.fill()
-    ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 1
-    ctx.stroke()
-
-    const midAngle = startAngle + arcSize / 2
-    const labelR = r * 0.6
-    ctx.save()
-    ctx.translate(cx + Math.cos(midAngle) * labelR, cy + Math.sin(midAngle) * labelR)
-    ctx.rotate(midAngle + Math.PI / 2)
-    ctx.fillStyle = '#fff'
-    ctx.font = 'bold 10px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-
-    const label = items.value[i].label
-    ctx.fillText(label.length > 5 ? label.slice(0, 4) + '..' : label, 0, 0)
-    ctx.restore()
-  }
-
-  ctx.beginPath()
-  ctx.arc(cx, cy, 14, 0, 2 * Math.PI)
-  ctx.fillStyle = '#333'
-  ctx.fill()
-}
+loadItems()
 
 function spin() {
   if (spinning.value || items.value.length === 0) return
   spinning.value = true
   result.value = ''
+  highlightIdx.value = -1
 
-  const extraRotations = 5 + Math.floor(Math.random() * 3)
-  const randomAngle = Math.random() * 360
-  const totalDeg = extraRotations * 360 + randomAngle
-  const totalRad = (totalDeg * Math.PI) / 180
+  const duration = 2000
+  const steps = 20
+  const interval = duration / steps
+  let step = 0
 
-  currentRotation.value += totalRad
-
-  const n = items.value.length
-  const segDeg = 360 / n
-  const normalizedAngle = ((currentRotation.value * 180 / Math.PI) % 360 + 360) % 360
-  const winnerIdx = Math.floor(((360 - normalizedAngle) % 360) / segDeg) % n
-  const winnerLabel = items.value[winnerIdx].label
-
-  const duration = 3000
-  const startTime = Date.now()
-  const startRot = currentRotation.value - totalRad
-
-  function animate() {
-    const elapsed = Date.now() - startTime
-    const progress = Math.min(elapsed / duration, 1)
-    const eased = 1 - Math.pow(1 - progress, 3)
-    const rot = startRot + totalRad * eased
-    drawWheel(rot)
-    if (progress < 1) {
-      requestAnimationFrame(animate)
+  function tick() {
+    highlightIdx.value = Math.floor(Math.random() * items.value.length)
+    step++
+    if (step < steps) {
+      setTimeout(tick, interval * (1 + step * 0.05))
     } else {
+      const winnerIdx = Math.floor(Math.random() * items.value.length)
+      highlightIdx.value = winnerIdx
+      result.value = items.value[winnerIdx].label
       spinning.value = false
-      result.value = winnerLabel
       emit('spinDone')
     }
   }
-  animate()
+  tick()
 }
 
 async function addItem() {
@@ -161,7 +70,6 @@ async function deleteItem(item: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `删除「${item.label}」？` })
   if (!ok.confirm) return
   items.value = items.value.filter(i => i._id !== item._id)
-  nextTick(() => redraw())
   try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
     if (!res.result.success) {
@@ -176,7 +84,6 @@ async function clearAll() {
   const ok = await uni.showModal({ title: '清空全部', content: '确定清空所有选项吗？' })
   if (!ok.confirm) return
   items.value = []
-  nextTick(() => redraw())
   try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: props.coupleId } })
     if (!res.result.success) { uni.showToast({ title: '清空失败', icon: 'none' }) }
@@ -192,10 +99,23 @@ async function clearAll() {
       <text v-if="items.length > 0" class="clear-btn" @tap="clearAll">🗑️ 清空</text>
     </view>
 
+    <!-- 转盘可视化：选项排成一圈 -->
     <view class="wheel-area" v-if="items.length > 0">
-      <canvas canvas-id="wheelCanvas" id="wheelCanvas" type="2d" class="wheel-canvas" :style="{ width: canvasWidth * 2 + 'rpx', height: canvasHeight * 2 + 'rpx' }"></canvas>
-      <view class="spin-btn" :class="{ disabled: spinning }" @tap="spin">
-        <text>{{ spinning ? '转动中...' : '抽奖' }}</text>
+      <view class="wheel-ring">
+        <view
+          v-for="(item, i) in items" :key="item._id"
+          class="wheel-seg"
+          :style="{
+            background: COLORS[i % COLORS.length],
+            transform: 'rotate(' + (i * 360 / items.length) + 'deg) translateY(-200rpx)',
+            borderColor: highlightIdx === i ? '#FFD700' : 'transparent'
+          }"
+        >
+          <text class="seg-label">{{ item.label }}</text>
+        </view>
+        <view class="spin-btn" :class="{ disabled: spinning }" @tap="spin">
+          <text>{{ spinning ? '...' : '抽奖' }}</text>
+        </view>
       </view>
     </view>
 
@@ -208,6 +128,7 @@ async function clearAll() {
       <text class="we-text">添加选项后即可转动转盘</text>
     </view>
 
+    <!-- 选项管理 -->
     <view class="wheel-mgmt">
       <view class="add-row">
         <input class="add-input" v-model="newLabel" placeholder="输入选项名称" maxlength="20" @confirm="addItem" />
@@ -236,8 +157,16 @@ async function clearAll() {
 .wh-hint { font-size: 22rpx; color: #bbb; }
 .clear-btn { font-size: 22rpx; color: #F44336; padding: 6rpx 14rpx; border-radius: 12rpx; background: rgba(244,67,54,0.08); flex-shrink: 0; }
 
-.wheel-area { position: relative; display: flex; align-items: center; justify-content: center; margin: 20rpx 0; }
-.wheel-canvas { width: 600rpx; height: 600rpx; border-radius: 50%; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.1); }
+.wheel-area { display: flex; align-items: center; justify-content: center; padding: 40rpx 0; }
+.wheel-ring { position: relative; width: 480rpx; height: 480rpx; }
+.wheel-seg {
+  position: absolute; top: 50%; left: 50%;
+  width: 200rpx; height: 60rpx; margin-left: -100rpx; margin-top: -30rpx;
+  transform-origin: center center;
+  border-radius: 12rpx; display: flex; align-items: center; justify-content: center;
+  border: 3rpx solid transparent; transition: border-color 0.15s;
+}
+.seg-label { font-size: 22rpx; color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180rpx; }
 .spin-btn {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 100rpx; height: 100rpx; border-radius: 50%;
@@ -246,10 +175,10 @@ async function clearAll() {
   box-shadow: 0 4rpx 16rpx rgba(255,152,0,0.4);
   z-index: 2;
 }
-.spin-btn text { font-size: 24rpx; color: #fff; font-weight: 700; }
+.spin-btn text { font-size: 26rpx; color: #fff; font-weight: 700; }
 .spin-btn.disabled { opacity: 0.5; pointer-events: none; }
 
-.result-area { text-align: center; padding: 12rpx; margin-bottom: 12rpx; }
+.result-area { text-align: center; padding: 12rpx; }
 .result-text { font-size: 28rpx; color: #FF9800; }
 .result-label { font-size: 34rpx; font-weight: 800; color: #F44336; }
 
