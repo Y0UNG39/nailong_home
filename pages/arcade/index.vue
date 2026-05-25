@@ -49,10 +49,13 @@ function drawWheelOld() {
   ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE)
 
   if (n === 0) {
-    ctx.setFillStyle('#f0f0f0')
+    ctx.setFillStyle('#f8f8f8')
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill()
-    ctx.setFillStyle('#bbb'); ctx.setFontSize(14)
-    ctx.setTextAlign('center'); ctx.fillText('添加选项', cx, cy + 4); ctx.draw(); return
+    ctx.setStrokeStyle('#e0e0e0'); ctx.setLineWidth(2)
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke()
+    ctx.setStrokeStyle('#eee'); ctx.setLineWidth(1)
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.stroke()
+    ctx.draw(); return
   }
 
   ctx.setLineWidth(1); ctx.setStrokeStyle('#fff')
@@ -124,6 +127,7 @@ async function wDelete(item: WItem) {
   const ok = await uni.showModal({ title: '确认删除', content: `删除「${item.label}」？` })
   if (!ok.confirm) return
   wheelItems.value = wheelItems.value.filter(i => i._id !== item._id)
+  nextTick(() => drawWheelOld())
     try {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
     if (!res.result.success) { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
@@ -368,23 +372,23 @@ onShow(() => { loadArcadeData() })
 .pie-canvas { width:600rpx; height:600rpx; }
 .wh-arrow {
   position:absolute; top:50%; left:50%;
-  width:0; height:0; margin-left:-28rpx; margin-top:-70rpx;
-  border-left:28rpx solid transparent;
-  border-right:28rpx solid transparent;
-  border-bottom:90rpx solid #F44336;
-  transform-origin:28rpx 70rpx;
+  width:0; height:0; margin-left:-14rpx; margin-top:-210rpx;
+  border-left:14rpx solid transparent;
+  border-right:14rpx solid transparent;
+  border-bottom:200rpx solid #F44336;
+  transform-origin:14rpx 210rpx;
   z-index:2;
-  filter:drop-shadow(0 4rpx 8rpx rgba(0,0,0,0.3));
+  filter:drop-shadow(0 4rpx 12rpx rgba(0,0,0,0.3));
 }
 .wh-arrow.off { opacity:0.5; }
-.wh-btn { text-align:center; margin-top:16rpx; }
+.wh-btn { text-align:center; margin-top:20rpx; width:100%; }
 .wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-btn-t {
   display:inline-block;
   background:linear-gradient(135deg,#FF9800,#FFB74D);
-  border-radius:28rpx; padding:14rpx 48rpx;
-  font-size:28rpx; color:#fff; font-weight:700;
-  box-shadow:0 4rpx 16rpx rgba(255,152,0,0.4);
+  border-radius:44rpx; padding:16rpx 64rpx;
+  font-size:30rpx; color:#fff; font-weight:700;
+  box-shadow:0 4rpx 20rpx rgba(255,152,0,0.4);
 }
 
 .wh-result { text-align:center; padding:12rpx; }
