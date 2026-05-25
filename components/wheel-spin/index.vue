@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, getCurrentInstance } from 'vue'
 
 const props = defineProps<{ coupleId: string | null }>()
 const emit = defineEmits<{ spinDone: [] }>()
@@ -12,16 +12,44 @@ const newLabel = ref('')
 const spinning = ref(false)
 const result = ref('')
 const currentRotation = ref(0)
-const canvasWidth = 600
-const canvasHeight = 600
+const canvasReady = ref(false)
+const canvasWidth = 300
+const canvasHeight = 300
 
-let canvasCtx: WechatMiniprogram.CanvasRenderingContext2D | null = null
+let canvasCtx: any = null
 
 function loadItems() {
   if (!props.coupleId) return
   wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: props.coupleId } }).then(
-    (res: any) => { if (res.result.success) items.value = res.result.items }
+    (res: any) => {
+      if (res.result.success) {
+        items.value = res.result.items
+        nextTick(() => redraw())
+      }
+    }
   ).catch(() => {})
+}
+
+function redraw() {
+  if (canvasCtx) drawWheel(currentRotation.value)
+}
+
+function initCanvas() {
+  // 优先尝试 2d canvas
+  const query = uni.createSelectorQuery().in(getCurrentInstance() as any)
+  query.select('#wheelCanvas')
+    .fields({ node: true, size: true })
+    .exec((res: any) => {
+      const node = res && res[0]
+      if (node && node.node) {
+        const cvs = node.node
+        cvs.width = canvasWidth
+        cvs.height = canvasHeight
+        canvasCtx = cvs.getContext('2d')
+        canvasReady.value = true
+        drawWheel(0)
+      }
+    })
 }
 
 onMounted(() => {
@@ -29,33 +57,17 @@ onMounted(() => {
   nextTick(() => initCanvas())
 })
 
-async function initCanvas() {
-  try {
-    const query = uni.createSelectorQuery()
-    const res = await new Promise<any>((resolve) => {
-      query.select('#wheelCanvas').fields({ node: true, size: true }).exec((r) => resolve(r[0]))
-    })
-    if (!res) return
-    const canvas = res.node
-    canvas.width = canvasWidth
-    canvas.height = canvasHeight
-    canvasCtx = canvas.getContext('2d')
-    drawWheel(0)
-  } catch (e) {}
-}
-
 function drawWheel(rotation: number) {
   if (!canvasCtx || items.value.length === 0) return
   const ctx = canvasCtx
   const n = items.value.length
   const cx = canvasWidth / 2
   const cy = canvasHeight / 2
-  const r = cx - 20
+  const r = cx - 10
   const arcSize = (2 * Math.PI) / n
 
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
 
-  // Draw segments
   for (let i = 0; i < n; i++) {
     const startAngle = -Math.PI / 2 + i * arcSize + rotation
     const endAngle = startAngle + arcSize
@@ -67,42 +79,27 @@ function drawWheel(rotation: number) {
     ctx.fillStyle = COLORS[i % COLORS.length]
     ctx.fill()
     ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 1
     ctx.stroke()
 
-    // Label
     const midAngle = startAngle + arcSize / 2
-    const labelR = r * 0.65
+    const labelR = r * 0.6
     ctx.save()
     ctx.translate(cx + Math.cos(midAngle) * labelR, cy + Math.sin(midAngle) * labelR)
     ctx.rotate(midAngle + Math.PI / 2)
     ctx.fillStyle = '#fff'
-    ctx.font = 'bold 22px sans-serif'
+    ctx.font = 'bold 10px sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
     const label = items.value[i].label
-    if (label.length > 6) {
-      ctx.fillText(label.slice(0, 5) + '..', 0, 0)
-    } else {
-      ctx.fillText(label, 0, 0)
-    }
+    ctx.fillText(label.length > 5 ? label.slice(0, 4) + '..' : label, 0, 0)
     ctx.restore()
   }
 
-  // Center circle
   ctx.beginPath()
-  ctx.arc(cx, cy, 28, 0, 2 * Math.PI)
+  ctx.arc(cx, cy, 14, 0, 2 * Math.PI)
   ctx.fillStyle = '#333'
-  ctx.fill()
-
-  // Pointer triangle at top
-  ctx.beginPath()
-  ctx.moveTo(cx, cy - r - 18)
-  ctx.lineTo(cx - 20, cy - r - 2)
-  ctx.lineTo(cx + 20, cy - r - 2)
-  ctx.closePath()
-  ctx.fillStyle = '#F44336'
   ctx.fill()
 }
 
@@ -118,21 +115,12 @@ function spin() {
 
   currentRotation.value += totalRad
 
-  drawWheel(currentRotation.value)
-
-  // Calculate result
   const n = items.value.length
-  const finalAngle = ((currentRotation.value * 180) / Math.PI) % 360
-  const normalizedAngle = ((finalAngle % 360) + 360) % 360
-  // pointer at top = -90deg in rad = 270deg in degrees, adjust for canvas y-down
-  const pointerDeg = 270
   const segDeg = 360 / n
-  // The segment facing the pointer after rotation
-  let winnerIdx = Math.floor(((360 - normalizedAngle) % 360) / segDeg)
-  if (winnerIdx >= n) winnerIdx = 0
+  const normalizedAngle = ((currentRotation.value * 180 / Math.PI) % 360 + 360) % 360
+  const winnerIdx = Math.floor(((360 - normalizedAngle) % 360) / segDeg) % n
   const winnerLabel = items.value[winnerIdx].label
 
-  // Schedule spin animation using requestAnimationFrame
   const duration = 3000
   const startTime = Date.now()
   const startRot = currentRotation.value - totalRad
@@ -140,11 +128,9 @@ function spin() {
   function animate() {
     const elapsed = Date.now() - startTime
     const progress = Math.min(elapsed / duration, 1)
-    // ease-out cubic
     const eased = 1 - Math.pow(1 - progress, 3)
     const rot = startRot + totalRad * eased
     drawWheel(rot)
-
     if (progress < 1) {
       requestAnimationFrame(animate)
     } else {
@@ -162,7 +148,7 @@ async function addItem() {
   if (!props.coupleId) return
   newLabel.value = ''
   try {
-    const res = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: props.coupleId, label } }) as any
+    const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: props.coupleId, label } })
     if (res.result.success) {
       loadItems()
     } else {
@@ -175,18 +161,14 @@ async function deleteItem(item: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `删除「${item.label}」？` })
   if (!ok.confirm) return
   items.value = items.value.filter(i => i._id !== item._id)
+  nextTick(() => redraw())
   try {
-    const res = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } }) as any
+    const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
     if (!res.result.success) {
-      items.value.push(item)
+      loadItems()
       uni.showToast({ title: '删除失败', icon: 'none' })
-    } else {
-      nextTick(() => drawWheel(currentRotation.value))
     }
-  } catch {
-    items.value.push(item)
-    uni.showToast({ title: '删除失败', icon: 'none' })
-  }
+  } catch { loadItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
 }
 
 async function clearAll() {
@@ -194,13 +176,10 @@ async function clearAll() {
   const ok = await uni.showModal({ title: '清空全部', content: '确定清空所有选项吗？' })
   if (!ok.confirm) return
   items.value = []
+  nextTick(() => redraw())
   try {
-    const res = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: props.coupleId } }) as any
-    if (res.result.success) {
-      drawWheel(currentRotation.value)
-    } else {
-      uni.showToast({ title: '清空失败', icon: 'none' })
-    }
+    const res: any = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: props.coupleId } })
+    if (!res.result.success) { uni.showToast({ title: '清空失败', icon: 'none' }) }
   } catch { uni.showToast({ title: '清空失败', icon: 'none' }) }
 }
 </script>
@@ -214,7 +193,7 @@ async function clearAll() {
     </view>
 
     <view class="wheel-area" v-if="items.length > 0">
-      <canvas id="wheelCanvas" type="2d" class="wheel-canvas" :style="{ width: canvasWidth + 'px', height: canvasHeight + 'px' }"></canvas>
+      <canvas canvas-id="wheelCanvas" id="wheelCanvas" type="2d" class="wheel-canvas" :style="{ width: canvasWidth * 2 + 'rpx', height: canvasHeight * 2 + 'rpx' }"></canvas>
       <view class="spin-btn" :class="{ disabled: spinning }" @tap="spin">
         <text>{{ spinning ? '转动中...' : '抽奖' }}</text>
       </view>
@@ -224,9 +203,11 @@ async function clearAll() {
       <text class="result-text">🎉 中了：<text class="result-label">{{ result }}</text></text>
     </view>
 
-    <empty-state v-if="items.length === 0" icon="🎡" text="添加选项后即可转动转盘" />
+    <view class="wheel-empty" v-if="items.length === 0">
+      <text class="we-icon">🎡</text>
+      <text class="we-text">添加选项后即可转动转盘</text>
+    </view>
 
-    <!-- 选项管理 -->
     <view class="wheel-mgmt">
       <view class="add-row">
         <input class="add-input" v-model="newLabel" placeholder="输入选项名称" maxlength="20" @confirm="addItem" />
@@ -271,6 +252,10 @@ async function clearAll() {
 .result-area { text-align: center; padding: 12rpx; margin-bottom: 12rpx; }
 .result-text { font-size: 28rpx; color: #FF9800; }
 .result-label { font-size: 34rpx; font-weight: 800; color: #F44336; }
+
+.wheel-empty { text-align: center; padding: 32rpx 0; }
+.we-icon { font-size: 48rpx; display: block; margin-bottom: 12rpx; }
+.we-text { font-size: 24rpx; color: #bbb; }
 
 .wheel-mgmt { margin-top: 12rpx; }
 .add-row { display: flex; gap: 12rpx; margin-bottom: 16rpx; }
