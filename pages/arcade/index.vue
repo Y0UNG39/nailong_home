@@ -95,14 +95,13 @@ function wSpin() {
   const spins = 5 + Math.floor(Math.random() * 3)
   const target = spins * 360 + wi * seg + seg / 2
 
-  const dur = 2500; const tick = 60; const s = Date.now(); let fi = 0
+  const dur = 2500; const tick = 60; const s = Date.now()
   const startA = wArrow.value
 
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
     const e = 1 - Math.pow(1 - p, 3)
     wArrow.value = startA + e * target
-    fi = (fi + 1) % n; wBlink.value = fi; drawWheelOld()
     if (p >= 1) {
       clearInterval(timer)
       wBlink.value = wi; drawWheelOld()
@@ -376,13 +375,13 @@ onShow(() => { loadArcadeData() })
 .pie-canvas { width:600rpx; height:600rpx; }
 .wh-arrow {
   position:absolute; top:50%; left:50%;
-  width:0; height:0; margin-left:-8rpx; margin-top:-280rpx;
-  border-left:8rpx solid transparent;
-  border-right:8rpx solid transparent;
-  border-bottom:250rpx solid #F44336;
-  transform-origin:8rpx 280rpx;
+  width:0; height:0; margin-left:-10rpx; margin-top:-250rpx;
+  border-left:10rpx solid transparent;
+  border-right:10rpx solid transparent;
+  border-top:250rpx solid #F44336;
+  transform-origin:10rpx 250rpx;
   z-index:2;
-  filter:drop-shadow(0 2rpx 8rpx rgba(0,0,0,0.35));
+  filter:drop-shadow(0 2rpx 6rpx rgba(0,0,0,0.3));
 }
 .wh-arrow.off { opacity:0.5; }
 .wh-btn { text-align:center; margin-top:20rpx; width:100%; }
