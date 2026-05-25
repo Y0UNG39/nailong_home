@@ -31,7 +31,6 @@ const wNewLabel = ref('')
 const wSpinning = ref(false)
 const wResult = ref('')
 const wBlink = ref(-1)
-const wRotate = ref(0)
 
 let canvasCtx: any = null
 const canvasReady = ref(false)
@@ -98,19 +97,9 @@ function wSpin() {
   const wi = Math.floor(Math.random() * n)
   const label = wheelItems.value[wi].label
 
-  // 转 N 圈多，使 winner 指针（顶部0deg）对准第 wi 个标签
-  const segDeg = 360 / n
-  const targetAngle = (360 - wi * segDeg) % 360
-  const fullSpins = 5 + Math.floor(Math.random() * 3)
-  const finalAngle = fullSpins * 360 + targetAngle
-
-  const dur = 3000; const tick = 50; const s = Date.now(); let fi = 0
-  const startAngle = wRotate.value
-
+  const dur = 2500; const tick = 80; const s = Date.now(); let fi = 0
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
-    const e = 1 - Math.pow(1 - p, 3)
-    wRotate.value = startAngle + e * finalAngle
     fi = (fi + 1) % n; wBlink.value = fi; drawPie()
     if (p >= 1) {
       clearInterval(timer)
@@ -257,13 +246,16 @@ onShow(() => { loadArcadeData() })
 
       <!-- Canvas 饼图转盘 -->
       <view class="wh-stage">
-        <view class="wh-wheel" :style="{ transform: 'rotate(' + wRotate + 'deg)' }">
+        <view class="wh-wheel">
           <canvas id="pieCanvas" type="2d" class="pie-canvas"></canvas>
         </view>
-        <view class="wh-ptr"></view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
           <text class="wh-btn-t">抽奖</text>
         </view>
+      </view>
+
+      <view class="wh-result" v-if="wResult">
+        <text class="whr-text">🎉 中了 <text class="whr-label">{{ wResult }}</text></text>
       </view>
 
       <view class="wh-mgmt">
@@ -375,14 +367,6 @@ onShow(() => { loadArcadeData() })
 }
 .wh-wheel { position:relative; width:600rpx; height:600rpx; }
 .pie-canvas { width:600rpx; height:600rpx; }
-.wh-ptr {
-  position:absolute; top:2rpx; left:50%; transform:translateX(-50%);
-  width:0; height:0;
-  border-left:22rpx solid transparent;
-  border-right:22rpx solid transparent;
-  border-top:36rpx solid #F44336;
-  z-index:2;
-}
 .wh-btn {
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
   width:100rpx; height:100rpx; border-radius:50%;
@@ -392,6 +376,10 @@ onShow(() => { loadArcadeData() })
 }
 .wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-btn-t { font-size:26rpx; color:#fff; font-weight:700; }
+
+.wh-result { text-align:center; padding:12rpx; }
+.whr-text { font-size:28rpx; color:#FF9800; }
+.whr-label { font-size:34rpx; font-weight:800; color:#F44336; }
 
 .wh-mgmt { margin-top:12rpx; }
 .wh-add { display:flex; gap:8rpx; margin-bottom:16rpx; }
