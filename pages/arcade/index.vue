@@ -26,11 +26,16 @@ const COLORS = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40',
   '#FF6B6B','#C9CBCF','#E7E9ED']
 const WHEEL_SIZE = 300
 const wArrow = ref(0)
-interface WItem { _id: string; label: string }
+interface WItem { _id: string; label: string; weight: number }
 const wheelItems = ref<WItem[]>([])
 const wNewLabel = ref('')
+const wNewWeight = ref(1)
 const wSpinning = ref(false)
 const wResult = ref('')
+const wEditId = ref('')
+const wEditWeight = ref(1)
+
+const totalWt = computed(() => wheelItems.value.reduce((s, i) => s + (i.weight || 1), 0))
 
 function loadWheelItems() {
   if (!store.coupleId) return
@@ -57,9 +62,11 @@ function drawWheelOld() {
     ctx.draw(); return
   }
 
-  const seg = (Math.PI * 2) / n
+  const tw = totalWt.value
+  let angle = -Math.PI / 2
   for (let i = 0; i < n; i++) {
-    const s = -Math.PI / 2 + i * seg; const e = s + seg
+    const seg = ((wheelItems.value[i].weight || 1) / tw) * Math.PI * 2
+    const s = angle; const e = s + seg
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, s, e); ctx.closePath()
     ctx.setFillStyle(COLORS[i % COLORS.length])
     ctx.fill()
@@ -70,6 +77,7 @@ function drawWheelOld() {
     ctx.setTextAlign('center'); ctx.setTextBaseline('middle')
     ctx.fillText(wheelItems.value[i].label.length > 5 ? wheelItems.value[i].label.slice(0, 4) + '..' : wheelItems.value[i].label, 0, 0)
     ctx.restore()
+    angle += seg
   }
 
   // 指针：圆心到边缘的细线
@@ -98,13 +106,23 @@ function wSpin() {
   if (wSpinning.value || wheelItems.value.length === 0) return
   wSpinning.value = true; wResult.value = ''
 
-  const n = wheelItems.value.length
-  const wi = Math.floor(Math.random() * n)
+  // 加权随机
+  const tw = totalWt.value
+  const rand = Math.random() * tw
+  let sum = 0
+  let wi = 0
+  for (let i = 0; i < wheelItems.value.length; i++) {
+    sum += (wheelItems.value[i].weight || 1)
+    if (rand <= sum) { wi = i; break }
+  }
   const label = wheelItems.value[wi].label
-  const seg = 360 / n
 
-  // 目标角度 = 扇区 wi 的正中间（从12点钟顺时针）
-  const targetAngle = wi * seg + seg / 2
+  // 计算扇区 wi 的角度范围（从12点钟顺时针，单位度）
+  let cumDeg = 0
+  for (let i = 0; i < wi; i++) cumDeg += ((wheelItems.value[i].weight || 1) / tw) * 360
+  const segDeg = ((wheelItems.value[wi].weight || 1) / tw) * 360
+  const targetAngle = cumDeg + segDeg / 2
+
   const currentMod = ((wArrow.value % 360) + 360) % 360
   let diff = targetAngle - currentMod
   if (diff < 0) diff += 360
@@ -133,13 +151,14 @@ async function wAdd() {
   const label = wNewLabel.value.trim()
   if (!label) { uni.showToast({ title: '请输入选项', icon: 'none' }); return }
   if (!store.coupleId) return
+  const weight = Math.max(1, Math.floor(Number(wNewWeight.value)) || 1)
   wNewLabel.value = ''
-  // 先加 UI，再后台同步
+  wNewWeight.value = 1
   const tmpId = '_' + Date.now()
-  wheelItems.value.push({ _id: tmpId, label } as any)
+  wheelItems.value.push({ _id: tmpId, label, weight } as any)
   nextTick(() => drawWheelOld())
   try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label } })
+    const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label, weight } })
     if (res.result.success) loadWheelItems()
     else { wheelItems.value = wheelItems.value.filter(i => i._id !== tmpId); drawWheelOld(); uni.showToast({ title: res.result.error || '添加失败', icon: 'none' }) }
   } catch { wheelItems.value = wheelItems.value.filter(i => i._id !== tmpId); drawWheelOld(); uni.showToast({ title: '添加失败', icon: 'none' }) }
@@ -166,6 +185,17 @@ async function wClear() {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemClearAll', data: { coupleId: store.coupleId } })
     if (!res.result.success) uni.showToast({ title: '清空失败', icon: 'none' })
   } catch { uni.showToast({ title: '清空失败', icon: 'none' }) }
+}
+
+function startEdit(item: WItem) { wEditId.value = item._id; wEditWeight.value = item.weight || 1 }
+async function saveWeight(item: WItem) {
+  if (wEditWeight.value === (item.weight || 1)) { wEditId.value = ''; return }
+  const val = Math.max(1, Math.floor(Number(wEditWeight.value)) || 1)
+  try {
+    const res: any = await wx.cloud.callFunction({ name: 'wheelItemUpdate', data: { itemId: item._id, weight: val } })
+    if (res.result.success) { item.weight = val; wEditId.value = ''; drawWheelOld() }
+    else { uni.showToast({ title: res.result.error || '更新失败', icon: 'none' }) }
+  } catch { uni.showToast({ title: '更新失败', icon: 'none' }) }
 }
 
 // 切到转盘 tab 时加载数据
@@ -275,12 +305,18 @@ onShow(() => { loadArcadeData() })
       <view class="wh-mgmt">
         <view class="wh-add">
           <input class="wha-inp" v-model="wNewLabel" placeholder="选项名称" maxlength="20" @confirm="wAdd" />
+          <input class="wha-wt" v-model.number="wNewWeight" type="number" placeholder="权重" />
           <view class="wha-btn" @tap="wAdd"><text class="wha-btn-t">+ 添加</text></view>
         </view>
         <view class="wh-list" v-if="wheelItems.length > 0">
           <view class="wh-chip" v-for="item in wheelItems" :key="item._id">
             <view class="whc-dot" :style="{ background: COLORS[wheelItems.indexOf(item) % COLORS.length] }"></view>
             <text class="whc-label">{{ item.label }}</text>
+            <template v-if="wEditId === item._id">
+              <input class="whc-edt" v-model.number="wEditWeight" type="number" />
+              <text class="whc-ok" @tap="saveWeight(item)">✓</text>
+            </template>
+            <text v-else class="whc-wt" @tap="startEdit(item)">{{ ((item.weight || 1) / totalWt * 100).toFixed(0) }}%</text>
             <text class="whc-del" @tap="wDelete(item)">✕</text>
           </view>
         </view>
@@ -398,11 +434,15 @@ onShow(() => { loadArcadeData() })
 .wh-mgmt { margin-top:12rpx; }
 .wh-add { display:flex; gap:8rpx; margin-bottom:16rpx; }
 .wha-inp { flex:2; height:72rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 16rpx; font-size:26rpx; background:#FAFAFA; }
+.wha-wt { width:90rpx; height:72rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 8rpx; font-size:26rpx; text-align:center; background:#FAFAFA; flex-shrink:0; }
 .wha-btn { height:72rpx; line-height:72rpx; padding:0 24rpx; background:linear-gradient(135deg,#FF9800,#FFB74D); border-radius:16rpx; flex-shrink:0; }
 .wha-btn-t { font-size:26rpx; color:#fff; font-weight:600; }
 .wh-list { display:flex; flex-wrap:wrap; gap:12rpx; }
 .wh-chip { display:flex; align-items:center; gap:8rpx; background:#F5F5F5; border-radius:20rpx; padding:10rpx 14rpx; }
 .whc-dot { width:14rpx; height:14rpx; border-radius:50%; flex-shrink:0; }
 .whc-label { font-size:24rpx; color:#333; }
+.whc-wt { font-size:20rpx; color:#999; padding:4rpx 8rpx; background:rgba(0,0,0,0.04); border-radius:8rpx; }
+.whc-edt { width:64rpx; height:40rpx; border:1rpx solid #FFB800; border-radius:8rpx; font-size:20rpx; text-align:center; }
+.whc-ok { font-size:22rpx; color:#4CAF50; padding:4rpx; font-weight:700; }
 .whc-del { font-size:24rpx; color:#bbb; padding:4rpx; }
 </style>
