@@ -59,16 +59,26 @@ function wSpin() {
 
   const n = wheelItems.value.length
   const wi = Math.floor(Math.random() * n)
-  const dur = 3000; const tick = 70; const s = Date.now(); let fi = 0
+  const label = wheelItems.value[wi].label
+
+  // 转 N 圈多，使 winner 指针（顶部0deg）对准第 wi 个标签
+  const segDeg = 360 / n
+  const targetAngle = (360 - wi * segDeg) % 360
+  const fullSpins = 5 + Math.floor(Math.random() * 3)
+  const finalAngle = fullSpins * 360 + targetAngle
+
+  const dur = 3000; const tick = 50; const s = Date.now(); let fi = 0
+  const startAngle = wRotate.value
+
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
     const e = 1 - Math.pow(1 - p, 3)
-    wRotate.value = e * 6 * 360
+    wRotate.value = startAngle + e * finalAngle
     fi = (fi + 1) % n; wBlink.value = fi
     if (p >= 1) {
       clearInterval(timer)
-      wRotate.value = 0; wBlink.value = wi
-      nextTick(() => { wResult.value = wheelItems.value[wi].label; wSpinning.value = false })
+      wBlink.value = wi
+      nextTick(() => { wResult.value = label; wSpinning.value = false })
     }
   }, tick)
 }
@@ -226,10 +236,6 @@ onShow(() => { loadArcadeData() })
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
           <text class="wh-btn-t">抽奖</text>
         </view>
-      </view>
-
-      <view class="wh-result" v-if="wResult">
-        <text class="whr-text">🎉 中了：<text class="whr-label">{{ wResult }}</text></text>
       </view>
 
       <view class="wh-mgmt">
