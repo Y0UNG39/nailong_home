@@ -234,8 +234,8 @@ onShow(() => { loadArcadeData() })
         <text v-if="wheelItems.length > 0" class="wh-clear" @tap="wClear">🗑️ 清空</text>
       </view>
 
-      <!-- CSS 旋转圆盘 -->
-      <view class="wh-stage" v-if="wheelItems.length > 0">
+      <!-- CSS 旋转圆盘（始终显示） -->
+      <view class="wh-stage">
         <view class="wh-wheel" :style="{ transform: 'rotate(' + wRotate + 'deg)' }">
           <view
             v-for="(s, i) in wSlices" :key="wheelItems[i]._id"
@@ -245,16 +245,15 @@ onShow(() => { loadArcadeData() })
           >
             <text class="whs-label">{{ wheelItems[i].label }}</text>
           </view>
+          <view class="wh-empty-inner" v-if="wheelItems.length === 0">
+            <text class="whei-icon">🎡</text>
+            <text class="whei-text">添加选项</text>
+          </view>
         </view>
         <view class="wh-ptr"></view>
-        <view class="wh-btn" :class="{ off: wSpinning }" @tap="wSpin">
+        <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
           <text class="wh-btn-t">抽奖</text>
         </view>
-      </view>
-
-      <view class="wh-empty" v-if="wheelItems.length === 0">
-        <text class="whe-icon">🎡</text>
-        <text class="whe-text">添加选项后即可转动转盘</text>
       </view>
 
       <view class="wh-result" v-if="wResult">
@@ -408,9 +407,12 @@ onShow(() => { loadArcadeData() })
 .wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-btn-t { font-size:26rpx; color:#fff; font-weight:700; }
 
-.wh-empty { text-align:center; padding:40rpx 0; }
-.whe-icon { font-size:48rpx; display:block; margin-bottom:12rpx; }
-.whe-text { font-size:24rpx; color:#bbb; }
+.wh-empty-inner {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:1;
+}
+.whei-icon { font-size:56rpx; display:block; margin-bottom:12rpx; }
+.whei-text { font-size:26rpx; color:#bbb; }
 
 .wh-result { text-align:center; padding:12rpx; }
 .whr-text { font-size:28rpx; color:#FF9800; }
