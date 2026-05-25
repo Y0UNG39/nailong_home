@@ -24,6 +24,7 @@ function loadArcadeData() {
 const COLORS = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40',
   '#48BB78','#F6AD55','#63B3ED','#B794F4','#FC8181','#68D391','#FBD38D',
   '#FF6B6B','#C9CBCF','#E7E9ED']
+const WHEEL_SIZE = 300 // canvas 物理像素
 interface WItem { _id: string; label: string }
 const wheelItems = ref<WItem[]>([])
 const wNewLabel = ref('')
@@ -32,25 +33,61 @@ const wResult = ref('')
 const wBlink = ref(-1)
 const wRotate = ref(0)
 
-const radius = 210
-
-// 扇区样式：每个选项建一个彩色条，旋转让中间对准圆心外侧
-const wSlices = computed(() => {
-  const n = wheelItems.value.length
-  if (n === 0) return []
-  const deg = 360 / n
-  return wheelItems.value.map((_, i) => ({
-    background: COLORS[i % COLORS.length],
-    transform: `rotate(${i * deg + deg / 2}deg) translateY(-${radius}rpx)`,
-    hl: wBlink.value === i
-  }))
-})
+let canvasCtx: any = null
+const canvasReady = ref(false)
 
 function loadWheelItems() {
   if (!store.coupleId) return
   wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: store.coupleId } }).then(
-    (res: any) => { if (res.result.success) wheelItems.value = res.result.items }
+    (res: any) => {
+      if (res.result.success) { wheelItems.value = res.result.items; nextTick(() => drawPie()) }
+    }
   ).catch(() => {})
+}
+
+function initCanvas() {
+  const query = wx.createSelectorQuery()
+  query.select('#pieCanvas').fields({ node: true, size: true }).exec((res: any) => {
+    const r = res && res[0]
+    if (!r || !r.node) { setTimeout(() => initCanvas(), 200); return }
+    const c = r.node; c.width = WHEEL_SIZE; c.height = WHEEL_SIZE
+    canvasCtx = c.getContext('2d'); canvasReady.value = true; drawPie()
+  })
+}
+
+function drawPie() {
+  if (!canvasCtx) return
+  const ctx = canvasCtx; const n = wheelItems.value.length
+  const cx = WHEEL_SIZE / 2; const cy = WHEEL_SIZE / 2; const r = cx - 6
+  ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE)
+  if (n === 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.fillStyle = '#f0f0f0'; ctx.fill()
+    ctx.fillStyle = '#bbb'; ctx.font = '14px sans-serif'
+    ctx.textAlign = 'center'; ctx.fillText('添加选项', cx, cy + 4); return
+  }
+  const seg = (Math.PI * 2) / n; ctx.lineWidth = 1; ctx.strokeStyle = '#fff'
+  for (let i = 0; i < n; i++) {
+    const start = -Math.PI / 2 + i * seg; const end = start + seg
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath()
+    ctx.fillStyle = wBlink.value === i ? lightenPie(COLORS[i % COLORS.length]) : COLORS[i % COLORS.length]
+    ctx.fill(); ctx.stroke()
+    const mid = start + seg / 2; const lr = r * 0.65
+    ctx.save(); ctx.translate(cx + Math.cos(mid) * lr, cy + Math.sin(mid) * lr)
+    ctx.rotate(mid + Math.PI / 2)
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(wheelItems.value[i].label.length > 5 ? wheelItems.value[i].label.slice(0, 4) + '..' : wheelItems.value[i].label, 0, 0)
+    ctx.restore()
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2)
+  ctx.fillStyle = '#333'; ctx.fill()
+}
+
+function lightenPie(hex: string): string {
+  const h = parseInt(hex.replace('#', ''), 16)
+  const inc = (v: number) => Math.min(255, v + 60)
+  return `#${((inc(h >> 16) << 16) | (inc((h >> 8) & 0xFF) << 8) | inc(h & 0xFF)).toString(16).padStart(6, '0')}`
 }
 
 function wSpin() {
@@ -74,10 +111,10 @@ function wSpin() {
     const p = Math.min((Date.now() - s) / dur, 1)
     const e = 1 - Math.pow(1 - p, 3)
     wRotate.value = startAngle + e * finalAngle
-    fi = (fi + 1) % n; wBlink.value = fi
+    fi = (fi + 1) % n; wBlink.value = fi; drawPie()
     if (p >= 1) {
       clearInterval(timer)
-      wBlink.value = wi
+      wBlink.value = wi; drawPie()
       nextTick(() => { wResult.value = label; wSpinning.value = false })
     }
   }, tick)
@@ -116,8 +153,10 @@ async function wClear() {
   } catch { uni.showToast({ title: '清空失败', icon: 'none' }) }
 }
 
-// 切到转盘 tab 时加载数据
-watch(activeTab, (v) => { if (v === 'wheel') loadWheelItems() })
+// 切到转盘 tab 时加载数据 + 初始化 canvas
+watch(activeTab, (v) => {
+  if (v === 'wheel') { loadWheelItems(); nextTick(() => setTimeout(() => initCanvas(), 300)) }
+})
 
 onShow(() => { loadArcadeData() })
 
@@ -216,21 +255,10 @@ onShow(() => { loadArcadeData() })
         <text v-if="wheelItems.length > 0" class="wh-clear" @tap="wClear">🗑️ 清空</text>
       </view>
 
-      <!-- CSS 旋转圆盘（始终显示） -->
+      <!-- Canvas 饼图转盘 -->
       <view class="wh-stage">
         <view class="wh-wheel" :style="{ transform: 'rotate(' + wRotate + 'deg)' }">
-          <view
-            v-for="(s, i) in wSlices" :key="wheelItems[i]._id"
-            class="wh-slice"
-            :class="{ hl: s.hl }"
-            :style="{ background: s.background, transform: s.transform }"
-          >
-            <text class="whs-label">{{ wheelItems[i].label }}</text>
-          </view>
-          <view class="wh-empty-inner" v-if="wheelItems.length === 0">
-            <text class="whei-icon">🎡</text>
-            <text class="whei-text">添加选项</text>
-          </view>
+          <canvas id="pieCanvas" type="2d" class="pie-canvas"></canvas>
         </view>
         <view class="wh-ptr"></view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
@@ -345,20 +373,8 @@ onShow(() => { loadArcadeData() })
   position:relative; display:flex; align-items:center; justify-content:center;
   width:600rpx; height:600rpx; margin:0 auto 16rpx;
 }
-.wh-wheel {
-  position:relative; width:520rpx; height:520rpx; border-radius:50%;
-  border:6rpx solid #eee; background:#fafafa;
-  transition: none;
-}
-.wh-slice {
-  position:absolute; top:50%; left:50%;
-  width:160rpx; height:48rpx; margin-left:-80rpx; margin-top:-24rpx;
-  transform-origin:center center; border-radius:10rpx;
-  display:flex; align-items:center; justify-content:center;
-  border:3rpx solid transparent; transition:border-color 0.1s;
-}
-.wh-slice.hl { border-color:#FFD700; box-shadow:0 0 16rpx rgba(255,215,0,0.7); }
-.whs-label { font-size:20rpx; color:#fff; font-weight:600; white-space:nowrap; overflow:hidden; max-width:130rpx; }
+.wh-wheel { position:relative; width:600rpx; height:600rpx; }
+.pie-canvas { width:600rpx; height:600rpx; }
 .wh-ptr {
   position:absolute; top:2rpx; left:50%; transform:translateX(-50%);
   width:0; height:0;
@@ -376,17 +392,6 @@ onShow(() => { loadArcadeData() })
 }
 .wh-btn.off { opacity:0.5; pointer-events:none; }
 .wh-btn-t { font-size:26rpx; color:#fff; font-weight:700; }
-
-.wh-empty-inner {
-  position:absolute; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; z-index:1;
-}
-.whei-icon { font-size:56rpx; display:block; margin-bottom:12rpx; }
-.whei-text { font-size:26rpx; color:#bbb; }
-
-.wh-result { text-align:center; padding:12rpx; }
-.whr-text { font-size:28rpx; color:#FF9800; }
-.whr-label { font-size:34rpx; font-weight:800; color:#F44336; }
 
 .wh-mgmt { margin-top:12rpx; }
 .wh-add { display:flex; gap:8rpx; margin-bottom:16rpx; }
