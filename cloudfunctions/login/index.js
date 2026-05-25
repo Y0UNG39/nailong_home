@@ -23,6 +23,16 @@ exports.main = async (event) => {
       await db.collection('users').doc(userData._id).update({ data: updateData })
       Object.assign(userData, updateData)
     }
+
+    // 同步到 couples 文档，让对方能看到
+    if (userData.coupleId && Object.keys(updateData).length) {
+      const coupleUpdate = {}
+      for (const k of Object.keys(updateData)) {
+        coupleUpdate[`memberData.${OPENID}.${k}`] = updateData[k]
+      }
+      await db.collection('couples').doc(userData.coupleId).update({ data: coupleUpdate })
+    }
+
     return { success: true, openid: OPENID, isNew: false, user: userData }
   } catch (e) { return { success: false, error: e.message } }
 }
