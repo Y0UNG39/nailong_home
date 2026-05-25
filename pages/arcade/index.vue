@@ -4,6 +4,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 
 const store = useAppStore()
+const activeTab = ref<'shop' | 'wheel'>('shop')
 
 const shopItems = ref<any[]>([])
 const showCreateShop = ref(false)
@@ -16,7 +17,6 @@ function loadArcadeData() {
   wx.cloud.callFunction({ name: 'getShopItems', data: { coupleId: store.coupleId } }).then(res => {
     if (res.result.success) shopItems.value = res.result.items || []
   }).catch(() => {})
-  // 转盘数据会在 wheel-spin 组件内自动加载
 }
 
 async function onShopDelete(item: any) {
@@ -85,20 +85,32 @@ onShow(() => { loadArcadeData() })
 
 <template>
   <page-layout>
+    <!-- 乐园子Tab -->
+    <view class="sub-tabs">
+      <view class="sub-tab" :class="{ active: activeTab === 'shop' }" @tap="activeTab = 'shop'">🛒 小卖部</view>
+      <view class="sub-tab" :class="{ active: activeTab === 'wheel' }" @tap="activeTab = 'wheel'">🎡 转盘</view>
+    </view>
+
     <!-- 内测：一键设余额 -->
     <view class="test-btn" @tap="setBalance999"><text>🔧 余额设为999</text></view>
 
-    <view class="shop-grid">
-      <view class="shop-col" v-for="item in shopItems" :key="item._id">
-        <shop-item :item="item" showDelete @purchase="onShopPurchase" @delete="onShopDelete" @edit="onShopEdit" />
+    <!-- 小卖部 -->
+    <view class="tab-content" v-if="activeTab === 'shop'">
+      <view class="shop-grid">
+        <view class="shop-col" v-for="item in shopItems" :key="item._id">
+          <shop-item :item="item" showDelete @purchase="onShopPurchase" @delete="onShopDelete" @edit="onShopEdit" />
+        </view>
+      </view>
+      <empty-state v-if="shopItems.length === 0" icon="🛒" text="货架空空，快来上架第一个商品吧" />
+      <view class="fab" @tap="showCreateShop = true">
+        <text class="fab-icon">+</text><text>上架商品</text>
       </view>
     </view>
-    <empty-state v-if="shopItems.length === 0" icon="🛒" text="货架空空，快来上架第一个商品吧" />
-    <view class="fab" @tap="showCreateShop = true">
-      <text class="fab-icon">+</text><text>上架商品</text>
-    </view>
 
-    <wheel-spin :coupleId="store.coupleId" />
+    <!-- 转盘 -->
+    <view class="tab-content" v-if="activeTab === 'wheel'">
+      <wheel-spin :coupleId="store.coupleId" />
+    </view>
 
     <!-- 上架商品弹窗 -->
     <view v-if="showCreateShop" class="modal-mask" @tap="showCreateShop = false; editingShopId = ''">
@@ -144,6 +156,15 @@ onShow(() => { loadArcadeData() })
 </template>
 
 <style lang="scss" scoped>
+.sub-tabs {
+  display: flex; background: rgba(255,255,255,0.8); backdrop-filter: blur(12rpx);
+  border-radius: 20rpx; padding: 8rpx; margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255,184,0,0.06);
+}
+.sub-tab { flex:1; text-align:center; padding:18rpx 0; font-size:26rpx; color:#999; border-radius:16rpx; transition:all 0.2s; }
+.sub-tab.active { background:#FFB800; color:#fff; font-weight:700; box-shadow:0 4rpx 12rpx rgba(255,184,0,0.25); }
+.tab-content { padding-bottom: 140rpx; }
+
 .test-btn {
   background: rgba(255,255,255,0.6); border: 2rpx dashed #FFB800; border-radius: 16rpx;
   padding: 16rpx 0; text-align: center; font-size: 24rpx; color: #FFB800; margin-bottom: 20rpx;
