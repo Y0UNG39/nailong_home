@@ -32,58 +32,48 @@ const wSpinning = ref(false)
 const wResult = ref('')
 const wBlink = ref(-1)
 
-let canvasCtx: any = null
-const canvasReady = ref(false)
-
 function loadWheelItems() {
   if (!store.coupleId) return
   wx.cloud.callFunction({ name: 'getWheelItems', data: { coupleId: store.coupleId } }).then(
     (res: any) => {
-      if (res.result.success) { wheelItems.value = res.result.items; nextTick(() => drawPie()) }
+      if (res.result.success) { wheelItems.value = res.result.items; nextTick(() => drawWheelOld()) }
     }
   ).catch(() => {})
 }
 
-function initCanvas() {
-  const query = wx.createSelectorQuery()
-  query.select('#pieCanvas').fields({ node: true, size: true }).exec((res: any) => {
-    const r = res && res[0]
-    if (!r || !r.node) { setTimeout(() => initCanvas(), 200); return }
-    const c = r.node; c.width = WHEEL_SIZE; c.height = WHEEL_SIZE
-    canvasCtx = c.getContext('2d'); canvasReady.value = true; drawPie()
-  })
-}
-
-function drawPie() {
-  if (!canvasCtx) return
-  const ctx = canvasCtx; const n = wheelItems.value.length
+function drawWheelOld() {
+  const ctx = uni.createCanvasContext('pieCanvas')
+  const n = wheelItems.value.length
   const cx = WHEEL_SIZE / 2; const cy = WHEEL_SIZE / 2; const r = cx - 6
   ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE)
+
   if (n === 0) {
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
-    ctx.fillStyle = '#f0f0f0'; ctx.fill()
-    ctx.fillStyle = '#bbb'; ctx.font = '14px sans-serif'
-    ctx.textAlign = 'center'; ctx.fillText('添加选项', cx, cy + 4); return
+    ctx.setFillStyle('#f0f0f0')
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill()
+    ctx.setFillStyle('#bbb'); ctx.setFontSize(14)
+    ctx.setTextAlign('center'); ctx.fillText('添加选项', cx, cy + 4); ctx.draw(); return
   }
-  const seg = (Math.PI * 2) / n; ctx.lineWidth = 1; ctx.strokeStyle = '#fff'
+
+  ctx.setLineWidth(1); ctx.setStrokeStyle('#fff')
+  const seg = (Math.PI * 2) / n
   for (let i = 0; i < n; i++) {
-    const start = -Math.PI / 2 + i * seg; const end = start + seg
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath()
-    ctx.fillStyle = wBlink.value === i ? lightenPie(COLORS[i % COLORS.length]) : COLORS[i % COLORS.length]
+    const s = -Math.PI / 2 + i * seg; const e = s + seg
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, s, e); ctx.closePath()
+    ctx.setFillStyle(wBlink.value === i ? lightenOld(COLORS[i % COLORS.length]) : COLORS[i % COLORS.length])
     ctx.fill(); ctx.stroke()
-    const mid = start + seg / 2; const lr = r * 0.65
-    ctx.save(); ctx.translate(cx + Math.cos(mid) * lr, cy + Math.sin(mid) * lr)
-    ctx.rotate(mid + Math.PI / 2)
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    const mid = s + seg / 2; const lr = r * 0.65
+    ctx.save()
+    ctx.translate(cx + Math.cos(mid) * lr, cy + Math.sin(mid) * lr); ctx.rotate(mid + Math.PI / 2)
+    ctx.setFillStyle('#fff'); ctx.setFontSize(10)
+    ctx.setTextAlign('center'); ctx.setTextBaseline('middle')
     ctx.fillText(wheelItems.value[i].label.length > 5 ? wheelItems.value[i].label.slice(0, 4) + '..' : wheelItems.value[i].label, 0, 0)
     ctx.restore()
   }
-  ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2)
-  ctx.fillStyle = '#333'; ctx.fill()
+  ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.setFillStyle('#333'); ctx.fill()
+  ctx.draw()
 }
 
-function lightenPie(hex: string): string {
+function lightenOld(hex: string): string {
   const h = parseInt(hex.replace('#', ''), 16)
   const inc = (v: number) => Math.min(255, v + 60)
   return `#${((inc(h >> 16) << 16) | (inc((h >> 8) & 0xFF) << 8) | inc(h & 0xFF)).toString(16).padStart(6, '0')}`
@@ -100,10 +90,10 @@ function wSpin() {
   const dur = 2500; const tick = 80; const s = Date.now(); let fi = 0
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
-    fi = (fi + 1) % n; wBlink.value = fi; drawPie()
+    fi = (fi + 1) % n; wBlink.value = fi; drawWheelOld()
     if (p >= 1) {
       clearInterval(timer)
-      wBlink.value = wi; drawPie()
+      wBlink.value = wi; drawWheelOld()
       nextTick(() => { wResult.value = label; wSpinning.value = false })
     }
   }, tick)
@@ -142,10 +132,8 @@ async function wClear() {
   } catch { uni.showToast({ title: '清空失败', icon: 'none' }) }
 }
 
-// 切到转盘 tab 时加载数据 + 初始化 canvas
-watch(activeTab, (v) => {
-  if (v === 'wheel') { loadWheelItems(); nextTick(() => setTimeout(() => initCanvas(), 300)) }
-})
+// 切到转盘 tab 时加载数据
+watch(activeTab, (v) => { if (v === 'wheel') loadWheelItems() })
 
 onShow(() => { loadArcadeData() })
 
@@ -247,7 +235,7 @@ onShow(() => { loadArcadeData() })
       <!-- Canvas 饼图转盘 -->
       <view class="wh-stage">
         <view class="wh-wheel">
-          <canvas id="pieCanvas" type="2d" class="pie-canvas"></canvas>
+          <canvas canvas-id="pieCanvas" class="pie-canvas"></canvas>
         </view>
         <view class="wh-btn" :class="{ off: wSpinning || wheelItems.length === 0 }" @tap="wSpin">
           <view class="wh-arrow"></view>
