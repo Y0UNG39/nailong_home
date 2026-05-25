@@ -24,19 +24,13 @@ function loadArcadeData() {
 const COLORS = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40',
   '#48BB78','#F6AD55','#63B3ED','#B794F4','#FC8181','#68D391','#FBD38D',
   '#FF6B6B','#C9CBCF','#E7E9ED']
-interface WItem { _id: string; label: string; weight: number }
+interface WItem { _id: string; label: string }
 const wheelItems = ref<WItem[]>([])
 const wNewLabel = ref('')
-const wNewWeight = ref(10)
 const wSpinning = ref(false)
 const wResult = ref('')
 const wBlink = ref(-1)
 const wRotate = ref(0)
-const wEditId = ref('')
-const wEditWeight = ref(0)
-
-const wTotal = computed(() => wheelItems.value.reduce((s, i) => s + i.weight, 0))
-const wReady = computed(() => wTotal.value === 100)
 
 const radius = 210
 
@@ -44,17 +38,12 @@ const radius = 210
 const wSlices = computed(() => {
   const n = wheelItems.value.length
   if (n === 0) return []
-  let a = 0
-  return wheelItems.value.map((item, i) => {
-    const deg = (item.weight / 100) * 360
-    const mid = a + deg / 2
-    a += deg
-    return {
-      background: COLORS[i % COLORS.length],
-      transform: `rotate(${mid}deg) translateY(-${radius}rpx)`,
-      hl: wBlink.value === i
-    }
-  })
+  const deg = 360 / n
+  return wheelItems.value.map((_, i) => ({
+    background: COLORS[i % COLORS.length],
+    transform: `rotate(${i * deg + deg / 2}deg) translateY(-${radius}rpx)`,
+    hl: wBlink.value === i
+  }))
 })
 
 function loadWheelItems() {
@@ -66,15 +55,10 @@ function loadWheelItems() {
 
 function wSpin() {
   if (wSpinning.value || wheelItems.value.length === 0) return
-  if (!wReady.value) { uni.showToast({ title: `权重总和 ${wTotal.value}%，需要恰好 100%`, icon: 'none' }); return }
   wSpinning.value = true; wResult.value = ''; wBlink.value = -1
 
-  const totalW = wTotal.value
-  const rand = Math.random() * totalW
-  let sum = 0; let wi = 0
-  for (let i = 0; i < wheelItems.value.length; i++) { sum += wheelItems.value[i].weight; if (rand <= sum) { wi = i; break } }
-
   const n = wheelItems.value.length
+  const wi = Math.floor(Math.random() * n)
   const dur = 3000; const tick = 70; const s = Date.now(); let fi = 0
   const timer = setInterval(() => {
     const p = Math.min((Date.now() - s) / dur, 1)
@@ -95,7 +79,7 @@ async function wAdd() {
   if (!store.coupleId) return
   wNewLabel.value = ''
   try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label, weight: wNewWeight.value } })
+    const res: any = await wx.cloud.callFunction({ name: 'wheelItemCreate', data: { coupleId: store.coupleId, label } })
     if (res.result.success) { loadWheelItems(); nextTick(() => drawWheel()) }
     else { uni.showToast({ title: res.result.error || '添加失败', icon: 'none' }) }
   } catch { uni.showToast({ title: '添加失败', icon: 'none' }) }
@@ -109,16 +93,6 @@ async function wDelete(item: WItem) {
     const res: any = await wx.cloud.callFunction({ name: 'wheelItemDelete', data: { itemId: item._id } })
     if (!res.result.success) { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
   } catch { loadWheelItems(); uni.showToast({ title: '删除失败', icon: 'none' }) }
-}
-
-function wStartEdit(item: WItem) { wEditId.value = item._id; wEditWeight.value = item.weight }
-async function wSaveWeight(item: WItem) {
-  if (wEditWeight.value === item.weight) { wEditId.value = ''; return }
-  try {
-    const res: any = await wx.cloud.callFunction({ name: 'wheelItemUpdate', data: { itemId: item._id, weight: wEditWeight.value } })
-    if (res.result.success) { item.weight = wEditWeight.value; wEditId.value = ''; nextTick(() => drawWheel()) }
-    else { uni.showToast({ title: res.result.error || '更新失败', icon: 'none' }) }
-  } catch { uni.showToast({ title: '更新失败', icon: 'none' }) }
 }
 
 async function wClear() {
@@ -228,9 +202,7 @@ onShow(() => { loadArcadeData() })
     <!-- 转盘 -->
     <view class="tab-content" v-if="activeTab === 'wheel'">
       <view class="wh-top">
-        <text class="wh-total" :class="{ ok: wReady, over: wTotal > 100 }">
-          权重总和 {{ wTotal }}% {{ wReady ? '✓' : wTotal > 100 ? '⚠️' : '(需要 100%)' }}
-        </text>
+        <text class="wh-hint">{{ wheelItems.length }} 个选项</text>
         <text v-if="wheelItems.length > 0" class="wh-clear" @tap="wClear">🗑️ 清空</text>
       </view>
 
@@ -263,18 +235,12 @@ onShow(() => { loadArcadeData() })
       <view class="wh-mgmt">
         <view class="wh-add">
           <input class="wha-inp" v-model="wNewLabel" placeholder="选项名称" maxlength="20" @confirm="wAdd" />
-          <input class="wha-wt" v-model.number="wNewWeight" type="number" placeholder="权重" />
           <view class="wha-btn" @tap="wAdd"><text class="wha-btn-t">+ 添加</text></view>
         </view>
         <view class="wh-list" v-if="wheelItems.length > 0">
           <view class="wh-chip" v-for="item in wheelItems" :key="item._id">
             <view class="whc-dot" :style="{ background: COLORS[wheelItems.indexOf(item) % COLORS.length] }"></view>
             <text class="whc-label">{{ item.label }}</text>
-            <template v-if="wEditId === item._id">
-              <input class="whc-edt" v-model.number="wEditWeight" type="number" />
-              <text class="whc-ok" @tap="wSaveWeight(item)">✓</text>
-            </template>
-            <text v-else class="whc-wt" @tap="wStartEdit(item)">{{ item.weight }}%</text>
             <text class="whc-del" @tap="wDelete(item)">✕</text>
           </view>
         </view>
@@ -366,9 +332,7 @@ onShow(() => { loadArcadeData() })
 
 /* ---- 转盘 ---- */
 .wh-top { display:flex; align-items:center; justify-content:space-between; padding-bottom:12rpx; }
-.wh-total { font-size:22rpx; color:#bbb; }
-.wh-total.ok { color:#4CAF50; font-weight:700; }
-.wh-total.over { color:#F44336; font-weight:700; }
+.wh-hint { font-size:22rpx; color:#bbb; }
 .wh-clear { font-size:22rpx; color:#F44336; padding:4rpx 12rpx; border-radius:12rpx; background:rgba(244,67,54,0.08); }
 
 .wh-stage {
@@ -421,15 +385,11 @@ onShow(() => { loadArcadeData() })
 .wh-mgmt { margin-top:12rpx; }
 .wh-add { display:flex; gap:8rpx; margin-bottom:16rpx; }
 .wha-inp { flex:2; height:72rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 16rpx; font-size:26rpx; background:#FAFAFA; }
-.wha-wt { width:100rpx; height:72rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 8rpx; font-size:26rpx; text-align:center; background:#FAFAFA; flex-shrink:0; }
 .wha-btn { height:72rpx; line-height:72rpx; padding:0 24rpx; background:linear-gradient(135deg,#FF9800,#FFB74D); border-radius:16rpx; flex-shrink:0; }
 .wha-btn-t { font-size:26rpx; color:#fff; font-weight:600; }
 .wh-list { display:flex; flex-wrap:wrap; gap:12rpx; }
 .wh-chip { display:flex; align-items:center; gap:8rpx; background:#F5F5F5; border-radius:20rpx; padding:10rpx 14rpx; }
 .whc-dot { width:14rpx; height:14rpx; border-radius:50%; flex-shrink:0; }
 .whc-label { font-size:24rpx; color:#333; }
-.whc-wt { font-size:22rpx; color:#999; padding:4rpx 8rpx; }
-.whc-edt { width:60rpx; height:44rpx; border:1rpx solid #FFB800; border-radius:8rpx; font-size:22rpx; text-align:center; }
-.whc-ok { font-size:24rpx; color:#4CAF50; padding:4rpx; }
 .whc-del { font-size:24rpx; color:#bbb; padding:4rpx; }
 </style>
