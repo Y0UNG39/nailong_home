@@ -35,10 +35,3 @@ export const DREAM_CATEGORIES = [
   { key: 'material', label: '物质', color: '#9E9E9E', icon: '🎁' }
 ] as const
 
-export const PLACE_CATEGORIES = [
-  { key: 'restaurant', label: '餐厅', color: '#FF9800', icon: '🍽️' },
-  { key: 'spot', label: '景点', color: '#2196F3', icon: '🏔️' },
-  { key: 'exhibition', label: '展览', color: '#9C27B0', icon: '🎨' },
-  { key: 'cinema', label: '电影院', color: '#E91E63', icon: '🎬' },
-  { key: 'other', label: '其他', color: '#9E9E9E', icon: '📍' }
-] as const

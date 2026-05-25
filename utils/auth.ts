@@ -29,12 +29,6 @@ export async function login(nickname = '', avatar = '') {
   return result
 }
 
-export async function bindCouple(coupleId: string) {
-  const result = await callFunction('bindCouple', { coupleId })
-  if (result.success) useAppStore().setCouple(coupleId)
-  return result
-}
-
 export function getUserInfo() {
   const store = useAppStore()
   return { openid: store.openid, user: store.user, coupleId: store.coupleId, isNew: store.isNew, isPaired: store.isPaired }
