@@ -16,6 +16,7 @@ function loadArcadeData() {
   wx.cloud.callFunction({ name: 'getShopItems', data: { coupleId: store.coupleId } }).then(res => {
     if (res.result.success) shopItems.value = res.result.items || []
   }).catch(() => {})
+  // 转盘数据会在 wheel-spin 组件内自动加载
 }
 
 async function onShopDelete(item: any) {
@@ -96,6 +97,8 @@ onShow(() => { loadArcadeData() })
     <view class="fab" @tap="showCreateShop = true">
       <text class="fab-icon">+</text><text>上架商品</text>
     </view>
+
+    <wheel-spin :coupleId="store.coupleId" />
 
     <!-- 上架商品弹窗 -->
     <view v-if="showCreateShop" class="modal-mask" @tap="showCreateShop = false; editingShopId = ''">
