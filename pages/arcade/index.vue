@@ -221,7 +221,14 @@ function scTap(r: number, c: number) {
 watch(activeTab, (v) => { if (v === 'wheel') loadWheelItems() })
 onMounted(() => { scLoadSet(); scGen() })
 
-onShow(() => { loadArcadeData(); loadWheelItems() })
+onShow(() => {
+  loadArcadeData(); loadWheelItems()
+  const tab = uni.getStorageSync('arcade_tab')
+  if (tab && ['shop', 'wheel', 'scratch'].includes(tab)) {
+    activeTab.value = tab
+    uni.removeStorageSync('arcade_tab')
+  }
+})
 
 async function onShopDelete(item: any) {
   const ok = await uni.showModal({ title: '确认删除', content: `确定删除「${item.name}」吗？` })
@@ -276,7 +283,6 @@ async function submitShopItem() {
   }
 }
 
-onShow(() => { loadArcadeData(); loadWheelItems() })
 </script>
 
 <template>
