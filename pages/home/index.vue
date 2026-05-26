@@ -7,7 +7,6 @@ import { timeAgo } from '@/utils/date'
 const store = useAppStore()
 const loading = ref(false)
 
-const todayCheckIn = ref({ completed: 0, total: 0 })
 const activities = ref<any[]>([])
 const coins = ref(0)
 
@@ -22,7 +21,6 @@ async function loadData() {
   try {
     const res = await wx.cloud.callFunction({ name: 'getHomeData', data: { coupleId: store.coupleId } })
     if (res.result.success) {
-      todayCheckIn.value = res.result.todayCheckIn
       activities.value = (res.result.activities || []).map((a: any) => ({
         ...a,
         time: formatRelativeTime(a.time)
@@ -64,9 +62,6 @@ function requestSubscribe() {
   })
 }
 
-function goCheckIn() {
-  uni.switchTab({ url: '/pages/tasks/index' })
-}
 </script>
 
 <template>
@@ -76,22 +71,6 @@ function goCheckIn() {
       <text class="sb-icon">🔔</text>
       <text class="sb-text">开启通知，对方用券时提醒你</text>
       <text class="sb-btn">去开启</text>
-    </view>
-
-    <!-- 今日打卡入口 -->
-    <view class="checkin-card" @tap="goCheckIn">
-      <view class="ck-left">
-        <view class="ck-icon-wrap"><text class="ck-icon">📋</text></view>
-        <view class="ck-info">
-          <text class="ck-title">今日打卡</text>
-          <text class="ck-sub">去看看今天的任务吧</text>
-        </view>
-      </view>
-      <view class="ck-right">
-        <text class="ck-progress">{{ todayCheckIn.completed }}</text>
-        <text class="ck-total"> / {{ todayCheckIn.total }}</text>
-        <text class="ck-arrow">→</text>
-      </view>
     </view>
 
     <!-- 最近动态 -->
@@ -129,29 +108,6 @@ function goCheckIn() {
   background: rgba(255,255,255,0.25); border-radius: 24rpx; padding: 10rpx 24rpx;
   font-size: 24rpx; color: #fff; font-weight: 700; flex-shrink: 0; margin-left: 12rpx;
 }
-
-.checkin-card {
-  background: linear-gradient(135deg, #FFB800 0%, #FFCC00 100%);
-  border-radius: 28rpx;
-  padding: 28rpx 30rpx;
-  margin-bottom: 24rpx;
-  display: flex; align-items: center; justify-content: space-between;
-  box-shadow: 0 12rpx 32rpx rgba(255,184,0,0.25);
-}
-.ck-left { display: flex; align-items: center; }
-.ck-icon-wrap {
-  width: 76rpx; height: 76rpx; border-radius: 50%;
-  background: rgba(255,255,255,0.22); backdrop-filter: blur(8rpx);
-  display: flex; align-items: center; justify-content: center;
-  margin-right: 18rpx;
-}
-.ck-icon { font-size: 36rpx; }
-.ck-title { font-size: 32rpx; font-weight: 700; color: #fff; display: block; }
-.ck-sub { font-size: 22rpx; color: rgba(255,255,255,0.7); margin-top: 4rpx; }
-.ck-right { display: flex; align-items: baseline; }
-.ck-progress { font-size: 44rpx; font-weight: 800; color: #fff; }
-.ck-total { font-size: 28rpx; color: rgba(255,255,255,0.6); }
-.ck-arrow { font-size: 36rpx; color: rgba(255,255,255,0.5); margin-left: 6rpx; }
 
 .activity-card {
   background: rgba(255,255,255,0.85);

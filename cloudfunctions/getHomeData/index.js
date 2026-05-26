@@ -29,10 +29,7 @@ exports.main = async (event) => {
     const uRes = await db.collection('users').where({ _openid: OPENID }).get()
     const myCoins = uRes.data[0]?.coins || 0
 
-    // 今日打卡：统计每日任务完成情况
     const tasks = taskRes.data
-    const dailyTasks = tasks.filter(t => t.type === 'DAILY')
-    const dailyDone = dailyTasks.filter(t => t.status === 'submitted' || t.status === 'approved').length
 
     // feed：任务创建 + 任务完成
     const uidSet = new Set()
@@ -100,7 +97,6 @@ exports.main = async (event) => {
       success: true,
       name: couple.name || '',
       coins: myCoins,
-      todayCheckIn: { completed: dailyDone, total: dailyTasks.length },
       activities: feed.slice(0, 5)
     }
   } catch (e) {

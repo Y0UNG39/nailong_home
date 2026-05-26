@@ -33,20 +33,30 @@ exports.main = async (event) => {
     const partnerOpenid = (couple.members || []).find(id => id !== OPENID)
     let memberData = couple.memberData || {}
 
-    if (partnerOpenid && !memberData[partnerOpenid]) {
-      // memberData 中没有对方数据 → 从 users 表回填
+    // 检查是否需要从 users 表回填或更新头像
+    const partnerMissing = partnerOpenid && !memberData[partnerOpenid]
+    const partnerAvatarMissing = partnerOpenid && memberData[partnerOpenid] && !memberData[partnerOpenid].avatar
+
+    if (partnerMissing || partnerAvatarMissing) {
       const allUsers = await db.collection('users').where({ coupleId }).get()
       const newMemberData = { ...memberData }
       for (const u of allUsers.data) {
         const uid = u._openid || ''
-        if (uid && !newMemberData[uid]) {
-          newMemberData[uid] = { nickname: u.nickname || '', avatar: u.avatar || '', gender: u.gender || '' }
+        if (uid && (!newMemberData[uid] || (u.avatar && !newMemberData[uid].avatar))) {
+          newMemberData[uid] = {
+            nickname: u.nickname || newMemberData[uid]?.nickname || '',
+            avatar: u.avatar || newMemberData[uid]?.avatar || '',
+            gender: u.gender || newMemberData[uid]?.gender || ''
+          }
         }
       }
-      // 也把自己加进去（如果缺失）
       const myData = uRes.data[0]
-      if (OPENID && myData && !newMemberData[OPENID]) {
-        newMemberData[OPENID] = { nickname: myData.nickname || '', avatar: myData.avatar || '', gender: myData.gender || '' }
+      if (OPENID && myData && (!newMemberData[OPENID] || (myData.avatar && !newMemberData[OPENID].avatar))) {
+        newMemberData[OPENID] = {
+          nickname: myData.nickname || newMemberData[OPENID]?.nickname || '',
+          avatar: myData.avatar || newMemberData[OPENID]?.avatar || '',
+          gender: myData.gender || newMemberData[OPENID]?.gender || ''
+        }
       }
       await db.collection('couples').doc(coupleId).update({ data: { memberData: newMemberData } })
       memberData = newMemberData
@@ -54,11 +64,29 @@ exports.main = async (event) => {
 
     const partnerData = partnerOpenid ? memberData[partnerOpenid] : null
 
+    // 转换 cloud:// 格式的头像为临时 URL
+    async function convertAvatar(avatar) {
+      if (!avatar || !avatar.startsWith('cloud://')) return avatar || ''
+      try {
+        const res = await cloud.getTempFileURL({ fileList: [avatar] })
+        return res.fileList[0]?.tempFileURL || ''
+      } catch { return '' }
+    }
+
+    const myAvatarRaw = memberData[OPENID]?.avatar || uRes.data[0]?.avatar || ''
+    const partnerAvatarRaw = partnerData?.avatar || ''
+
+    const [myAvatarUrl, partnerAvatarUrl] = await Promise.all([
+      convertAvatar(myAvatarRaw),
+      convertAvatar(partnerAvatarRaw)
+    ])
+
     return {
       success: true,
       name: couple.name || '',
       inviteCode,
       coins: myCoins,
+      myAvatar: myAvatarUrl,
       stats: {
         tasks: tasksCnt.total,
         shop: shopCnt.total,
@@ -67,7 +95,7 @@ exports.main = async (event) => {
       coupons: couponsRes.data,
       partner: partnerData ? {
         nickname: partnerData.nickname || 'TA',
-        avatar: partnerData.avatar || '',
+        avatar: partnerAvatarUrl,
         gender: partnerData.gender || ''
       } : null
     }

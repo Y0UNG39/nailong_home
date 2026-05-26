@@ -50,7 +50,12 @@ async function loadProfileData() {
     // 硬币
     if (res.result.coins != null) store.setBalance(res.result.coins)
 
-    // 对方头像
+    // 我的头像（云函数已转换）
+    if (res.result.myAvatar) {
+      myAvatar.value = res.result.myAvatar
+    }
+
+    // 对方头像（云函数已转换）
     if (res.result.partner) {
       partnerAvatar.value = res.result.partner.avatar || ''
       partnerAvatarFailed.value = false
@@ -70,7 +75,7 @@ async function loadProfileData() {
   } catch {}
 }
 
-// 头像
+// 头像（初始值，onShow 时会从云函数更新）
 myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
 
 async function onChooseAvatar(e: any) {
@@ -84,7 +89,9 @@ async function onChooseAvatar(e: any) {
     const upRes = await wx.cloud.uploadFile({ cloudPath, filePath: tempUrl })
     const cloudFileId = upRes.fileID
 
-    myAvatar.value = cloudFileId
+    // 转换为临时 URL 用于显示
+    const urlRes = await wx.cloud.getTempFileURL({ fileList: [cloudFileId] })
+    myAvatar.value = urlRes.fileList[0]?.tempFileURL || cloudFileId
     store.updateUser({ avatar: cloudFileId })
     uni.setStorageSync('my_avatar', cloudFileId)
     const saveRes = await wx.cloud.callFunction({ name: 'updateAvatar', data: { avatar: cloudFileId } })
