@@ -2,18 +2,11 @@
 import { ref } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
-import { timeAgo } from '@/utils/date'
 
 const store = useAppStore()
 const loading = ref(false)
 
-const activities = ref<any[]>([])
 const coins = ref(0)
-
-function formatRelativeTime(t: string) {
-  if (!t) return ''
-  try { return timeAgo(t) } catch { return t }
-}
 
 async function loadData() {
   if (!store.coupleId) return
@@ -21,10 +14,6 @@ async function loadData() {
   try {
     const res = await wx.cloud.callFunction({ name: 'getHomeData', data: { coupleId: store.coupleId } })
     if (res.result.success) {
-      activities.value = (res.result.activities || []).map((a: any) => ({
-        ...a,
-        time: formatRelativeTime(a.time)
-      }))
       coins.value = res.result.coins || 0
       store.setBalance(coins.value)
       if (res.result.name) {
@@ -73,25 +62,6 @@ function requestSubscribe() {
       <text class="sb-btn">去开启</text>
     </view>
 
-    <!-- 最近动态 -->
-    <view class="activity-card">
-      <view class="section-header">
-        <text class="section-title">📰 最近动态</text>
-      </view>
-      <view class="act-list">
-        <view class="act-item" v-for="a in activities" :key="a.time">
-          <view class="act-icon-wrap"><text class="act-icon">{{ a.icon }}</text></view>
-          <view class="act-body">
-            <text class="act-text">
-              <text class="act-user">{{ a.user }}</text>
-              {{ a.content }}
-            </text>
-            <text class="act-time">{{ a.time }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
     <loading-spinner v-if="loading" text="加载中..." />
   </page-layout>
 </template>
@@ -109,27 +79,4 @@ function requestSubscribe() {
   font-size: 24rpx; color: #fff; font-weight: 700; flex-shrink: 0; margin-left: 12rpx;
 }
 
-.activity-card {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(20rpx);
-  border-radius: 24rpx;
-  padding: 20rpx 0;
-  box-shadow: 0 6rpx 28rpx rgba(255,184,0,0.06);
-  border: 1rpx solid rgba(255,255,255,0.5);
-}
-.section-header { padding: 0 28rpx 18rpx; border-bottom: 1rpx solid rgba(255,184,0,0.06); }
-.section-title { font-size: 30rpx; font-weight: 700; color: #333; }
-.act-list { padding: 0 28rpx; }
-.act-item { display: flex; align-items: center; padding: 20rpx 0; border-bottom: 1rpx solid rgba(255,184,0,0.04); }
-.act-item:last-child { border-bottom: none; }
-.act-icon-wrap {
-  width: 52rpx; height: 52rpx; border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,182,193,0.12));
-  display: flex; align-items: center; justify-content: center; margin-right: 16rpx; flex-shrink: 0;
-}
-.act-icon { font-size: 26rpx; }
-.act-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.act-text { font-size: 26rpx; color: #555; line-height: 1.5; }
-.act-user { color: #FFB800; font-weight: 600; }
-.act-time { font-size: 22rpx; color: #ccc; margin-top: 4rpx; }
 </style>
