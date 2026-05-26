@@ -48,14 +48,10 @@
     "autoscan": true,
     "custom": {
       "^page-layout": "@/components/page-layout/index.vue",
-      "^plant-status": "@/components/plant-status/index.vue",
       "^task-card": "@/components/task-card/index.vue",
       "^coin-display": "@/components/coin-display/index.vue",
-      "^gacha-machine": "@/components/gacha-machine/index.vue",
       "^shop-item": "@/components/shop-item/index.vue",
-      "^achievement-node": "@/components/achievement-node/index.vue",
       "^dream-card": "@/components/dream-card/index.vue",
-      "^place-item": "@/components/place-item/index.vue",
       "^loading-spinner": "@/components/loading-spinner/index.vue",
       "^empty-state": "@/components/empty-state/index.vue"
     }

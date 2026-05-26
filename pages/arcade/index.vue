@@ -4,7 +4,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 
 const store = useAppStore()
-const activeTab = ref<'shop' | 'wheel' | 'scratch'>('shop')
+const activeTab = ref<'shop' | 'wheel' | 'scratch' | 'dice'>('shop')
 
 // ---- 小卖部 ----
 const shopItems = ref<any[]>([])
@@ -224,7 +224,7 @@ onMounted(() => { scLoadSet(); scGen() })
 onShow(() => {
   loadArcadeData(); loadWheelItems()
   const tab = uni.getStorageSync('arcade_tab')
-  if (tab && ['shop', 'wheel', 'scratch'].includes(tab)) {
+  if (tab && ['shop', 'wheel', 'scratch', 'dice'].includes(tab)) {
     activeTab.value = tab
     uni.removeStorageSync('arcade_tab')
   }
@@ -283,6 +283,43 @@ async function submitShopItem() {
   }
 }
 
+// ---- 骰子 ----
+const diceCount = ref(2)
+const diceValues = ref<number[]>([1, 1])
+const diceRolling = ref(false)
+
+function getDots(v: number): boolean[] {
+  const d = [false,false,false,false,false,false,false,false,false]
+  if (v===1) d[4]=true
+  else if (v===2) { d[2]=d[6]=true }
+  else if (v===3) { d[2]=d[4]=d[6]=true }
+  else if (v===4) { d[0]=d[2]=d[6]=d[8]=true }
+  else if (v===5) { d[0]=d[2]=d[4]=d[6]=d[8]=true }
+  else if (v===6) { d[0]=d[2]=d[3]=d[5]=d[6]=d[8]=true }
+  return d
+}
+
+function setDiceCount(n: number) {
+  if (diceRolling.value) return
+  diceCount.value = n
+  diceValues.value = Array(n).fill(1)
+}
+
+function rollDice() {
+  if (diceRolling.value) return
+  diceRolling.value = true
+  let count = 0
+  const timer = setInterval(() => {
+    diceValues.value = Array.from({length: diceCount.value}, () => Math.floor(Math.random()*6)+1)
+    count++
+    if (count >= 10) {
+      clearInterval(timer)
+      diceValues.value = Array.from({length: diceCount.value}, () => Math.floor(Math.random()*6)+1)
+      diceRolling.value = false
+    }
+  }, 60)
+}
+
 </script>
 
 <template>
@@ -292,6 +329,7 @@ async function submitShopItem() {
       <view class="sub-tab" :class="{ active: activeTab === 'shop' }" @tap="activeTab = 'shop'">🛒 小卖部</view>
       <view class="sub-tab" :class="{ active: activeTab === 'wheel' }" @tap="activeTab = 'wheel'">🎡 转盘</view>
       <view class="sub-tab" :class="{ active: activeTab === 'scratch' }" @tap="activeTab = 'scratch'">💳 刮刮卡</view>
+      <view class="sub-tab" :class="{ active: activeTab === 'dice' }" @tap="activeTab = 'dice'">🎲 骰子</view>
     </view>
 
     <!-- 小卖部 -->
@@ -416,6 +454,33 @@ async function submitShopItem() {
             <view class="sc-mb cancel" @tap="scShowSet = false">取消</view>
             <view class="sc-mb save" @tap="scSaveSet">保存并重开</view>
           </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 骰子 -->
+    <view class="tab-content" v-if="activeTab === 'dice'">
+      <view class="dc-wrap">
+        <view class="dc-pick">
+          <text class="dc-pick-l">骰子数量</text>
+          <view class="dc-pick-row">
+            <view v-for="n in 6" :key="n" class="dc-pick-n" :class="{ on: diceCount === n }" @tap="setDiceCount(n)">{{ n }}</view>
+          </view>
+        </view>
+        <view class="dc-dices">
+          <view v-for="(v, i) in diceValues" :key="i" class="dc-box" :class="{ rolling: diceRolling }">
+            <view class="dc-face">
+              <view v-for="(dot, j) in getDots(v)" :key="j" class="dc-dot" :class="{ on: dot }" />
+            </view>
+          </view>
+        </view>
+        <view class="dc-total" v-if="!diceRolling">
+          <text class="dc-total-t">总点数</text>
+          <text class="dc-total-n">{{ diceValues.reduce((a,b)=>a+b, 0) }}</text>
+        </view>
+        <view class="dc-total" v-else><text class="dc-total-t">...</text></view>
+        <view class="dc-btn" @tap="rollDice">
+          <text class="dc-btn-t">{{ diceRolling ? '摇...' : '🎲 掷骰子' }}</text>
         </view>
       </view>
     </view>
@@ -584,4 +649,46 @@ async function submitShopItem() {
 .sc-mb { flex:1; text-align:center; padding:20rpx 0; border-radius:16rpx; font-size:26rpx; font-weight:600; }
 .sc-mb.cancel { background:#F5F5F5; color:#666; }
 .sc-mb.save { background:linear-gradient(135deg,#FF9800,#FFB74D); color:#fff; }
+
+/* ---- 骰子 ---- */
+.dc-wrap { display:flex; flex-direction:column; align-items:center; padding:40rpx 0; }
+.dc-pick { margin-bottom:40rpx; text-align:center; }
+.dc-pick-l { font-size:24rpx; color:#999; display:block; margin-bottom:12rpx; }
+.dc-pick-row { display:flex; gap:16rpx; justify-content:center; }
+.dc-pick-n {
+  width:64rpx; height:64rpx; border-radius:50%; border:2rpx solid #E0E0E0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28rpx; font-weight:600; color:#666; background:#fff;
+}
+.dc-pick-n.on { border-color:#FF9800; background:#FFF3E0; color:#FF9800; }
+.dc-dices { display:flex; flex-wrap:wrap; gap:20rpx; justify-content:center; margin-bottom:24rpx; }
+.dc-box {
+  width:140rpx; height:140rpx; border-radius:20rpx; background:#fff;
+  box-shadow:0 6rpx 24rpx rgba(0,0,0,0.1); display:flex; align-items:center; justify-content:center;
+}
+.dc-box.rolling { animation:dc-shake 0.06s linear infinite; }
+@keyframes dc-shake {
+  0% { transform:rotate(0deg); }
+  25% { transform:rotate(10deg) scale(1.05); }
+  50% { transform:rotate(0deg); }
+  75% { transform:rotate(-10deg) scale(1.05); }
+  100% { transform:rotate(0deg); }
+}
+.dc-face {
+  width:110rpx; height:110rpx; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  padding:8rpx;
+}
+.dc-dot {
+  width:24rpx; height:24rpx; border-radius:50%; align-self:center; justify-self:center;
+}
+.dc-dot.on { background:#F44336; box-shadow:0 2rpx 4rpx rgba(244,67,54,0.3); }
+.dc-total { display:flex; align-items:baseline; gap:8rpx; margin-bottom:24rpx; }
+.dc-total-t { font-size:24rpx; color:#999; }
+.dc-total-n { font-size:56rpx; font-weight:800; color:#FF9800; }
+.dc-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:20rpx 80rpx; background:linear-gradient(135deg,#FF9800,#FFB74D);
+  border-radius:44rpx; box-shadow:0 4rpx 20rpx rgba(255,152,0,0.4);
+}
+.dc-btn-t { font-size:30rpx; color:#fff; font-weight:700; }
 </style>

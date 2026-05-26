@@ -20,7 +20,6 @@ exports.main = async (event) => {
         inviteCode: code,
         members: [OPENID],
         coins: 0,
-        plant: { stage: 'seedling', growthValue: 0, health: 'healthy', variety: 'default' },
         createdAt: db.serverDate()
       }
     })
