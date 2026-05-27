@@ -9,10 +9,6 @@ exports.main = async (event) => {
   if (!entryId) return { success: false, error: 'missing entryId' }
 
   try {
-    const entry = await db.collection('expenses').doc(entryId).get()
-    if (!entry.data || entry.data._openid !== OPENID) {
-      return { success: false, error: 'unauthorized' }
-    }
     await db.collection('expenses').doc(entryId).remove()
     return { success: true }
   } catch (e) {

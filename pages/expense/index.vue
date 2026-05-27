@@ -187,7 +187,7 @@ async function deleteAllEntries() {
   const ok = await uni.showModal({ title: '确认清空', content: '删除本月所有记录？不可恢复' })
   if (!ok.confirm) return
 
-  const toDelete = [...entries.value]
+  const toDelete = entries.value.filter(e => !e._id.startsWith('temp_'))
   entries.value = []
   stats.value = { total: 0, myTotal: 0, partnerTotal: 0 }
 
