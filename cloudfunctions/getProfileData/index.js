@@ -94,6 +94,7 @@ exports.main = async (event) => {
       },
       coupons: couponsRes.data,
       partner: partnerData ? {
+        openid: partnerOpenid,
         nickname: partnerData.nickname || 'TA',
         avatar: partnerAvatarUrl,
         gender: partnerData.gender || ''

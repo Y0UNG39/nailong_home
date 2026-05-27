@@ -192,10 +192,6 @@ onShow(() => loadExpenses())
     <view class="stats-card">
       <text class="stats-label">本月支出</text>
       <text class="stats-total">¥ {{ formatAmount(stats.total) }}</text>
-      <view class="stats-row">
-        <text class="stats-item">我付 <b>¥{{ formatAmount(stats.myTotal) }}</b></text>
-        <text class="stats-item">TA付 <b>¥{{ formatAmount(stats.partnerTotal) }}</b></text>
-      </view>
     </view>
 
     <!-- 分类选择 -->
