@@ -1,124 +1,86 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
-import { daysBetween } from '@/utils/date'
 
 const store = useAppStore()
 
 const coupleName = ref('我们的空间')
-const togetherSince = ref('2019-05-01')
-const togetherDays = computed(() => {
-  if (!togetherSince.value) return 0
-  return daysBetween(new Date(), togetherSince.value)
-})
-
 const editingName = ref(false)
 const newName = ref('')
 const inviteCode = ref('')
-
-const myAvatar = ref('')
-const myAvatarFailed = ref(false)
-const partnerAvatar = ref('')
-const partnerAvatarFailed = ref(false)
-const partnerName = ref('TA')
-const partnerGender = ref('')
 const myGender = ref(store.user?.gender || '')
 
-function genderEmoji(gender: string) {
-  return gender === 'female' ? '👩' : '🧑'
+// 订阅通知
+const subBannerClosed = ref(!!uni.getStorageSync('sub_banner_closed'))
+const subscribed = ref(!!uni.getStorageSync('subscribed_msg'))
+
+function requestSubscribe() {
+  wx.requestSubscribeMessage({
+    tmplIds: ['mP6k6rjwe28q4WZ8njLetvXqeA1eH268EVoqrbvKmWc'],
+    success() {
+      subscribed.value = true
+      uni.setStorageSync('subscribed_msg', true)
+      uni.showToast({ title: '已订阅', icon: 'success' })
+    },
+    fail() { uni.showToast({ title: '订阅失败', icon: 'none' }) }
+  })
 }
 
-onShow(() => loadProfileData())
+function dismissSubBanner() {
+  subBannerClosed.value = true
+  uni.setStorageSync('sub_banner_closed', true)
+}
 
-async function loadProfileData() {
+onShow(() => loadSettingsData())
+
+async function loadSettingsData() {
   if (!store.coupleId) return
   try {
     const res = await wx.cloud.callFunction({ name: 'getProfileData', data: { coupleId: store.coupleId } })
     if (!res.result.success) return
 
-    // 情侣信息
     coupleName.value = res.result.name || '我们的空间'
 
-    // 邀请码
     const code = res.result.inviteCode
     if (code) {
       inviteCode.value = code
       store.setInviteCode(code)
     }
 
-    // 硬币
-    if (res.result.coins != null) store.setBalance(res.result.coins)
-
-    // 我的头像（云函数已转换）
-    if (res.result.myAvatar) {
-      myAvatar.value = res.result.myAvatar
-    }
-
-    // 对方头像（云函数已转换）
-    if (res.result.partner) {
-      partnerAvatar.value = res.result.partner.avatar || ''
-      partnerAvatarFailed.value = false
-      partnerName.value = res.result.partner.nickname || 'TA'
-      partnerGender.value = res.result.partner.gender || ''
-      store.setPartner(res.result.partner)
-    }
-
-    // 统计
-    const s = res.result.stats || {}
-    stats[0].value = String(s.shop || 0)
-    stats[1].value = String(s.dreams || 0)
-
-    // 券
-    coupons.value = res.result.coupons || []
+    myGender.value = store.user?.gender || ''
   } catch {}
 }
 
-// 头像（初始值，onShow 时会从云函数更新）
-myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
-
-async function onChooseAvatar(e: any) {
-  const tempUrl = e.detail?.avatarUrl || ''
-  if (!tempUrl) return
-
-  uni.showLoading({ title: '上传头像...' })
-  try {
-    const uid = store.openid || String(Date.now())
-    const cloudPath = `avatars/${uid}.jpg`
-    const upRes = await wx.cloud.uploadFile({ cloudPath, filePath: tempUrl })
-    const cloudFileId = upRes.fileID
-
-    // 转换为临时 URL 用于显示
-    const urlRes = await wx.cloud.getTempFileURL({ fileList: [cloudFileId] })
-    myAvatar.value = urlRes.fileList[0]?.tempFileURL || cloudFileId
-    store.updateUser({ avatar: cloudFileId })
-    uni.setStorageSync('my_avatar', cloudFileId)
-    const saveRes = await wx.cloud.callFunction({ name: 'updateAvatar', data: { avatar: cloudFileId } })
-    uni.hideLoading()
-    if (saveRes.result?.success) {
-      uni.showToast({ title: '头像已同步', icon: 'success' })
-    } else {
-      uni.showToast({ title: saveRes.result?.error || '同步失败', icon: 'none' })
-    }
-  } catch (err: any) {
-    uni.hideLoading()
-    uni.showToast({ title: '上传失败，请重试', icon: 'none' })
-  }
-}
-
-function onShowSettings() {
-  showSettings.value = true
-}
-
+// 券包
 const coupons = ref<any[]>([])
-
 const showCoupons = ref(false)
 const showSettings = ref(false)
 const couponTab = ref('unused')
-const filteredCoupons = computed(() => coupons.value.filter(c => c.status === couponTab.value))
-const unusedCount = computed(() => coupons.value.filter(c => c.status === 'unused').length)
+const filteredCoupons = ref<any[]>([])
+const unusedCount = ref(0)
 
-// 券包左滑删除
+function updateCoupons() {
+  filteredCoupons.value = coupons.value.filter(c => c.status === couponTab.value)
+  unusedCount.value = coupons.value.filter(c => c.status === 'unused').length
+}
+
+async function loadCoupons() {
+  if (!store.coupleId) return
+  try {
+    const res = await wx.cloud.callFunction({ name: 'getProfileData', data: { coupleId: store.coupleId } })
+    if (res.result.success) {
+      coupons.value = res.result.coupons || []
+      updateCoupons()
+    }
+  } catch {}
+}
+
+function openCoupons() {
+  showCoupons.value = true
+  loadCoupons()
+}
+
 const swipeState = ref<Record<string, number>>({})
 const swipeStartX = ref(0)
 const swipingId = ref('')
@@ -162,16 +124,19 @@ async function onCouponDelete(c: any) {
   if (!ok.confirm) return
   swipeState.value[c._id] = 0
   coupons.value = coupons.value.filter(x => x._id !== c._id)
+  updateCoupons()
   try {
     const res = await wx.cloud.callFunction({ name: 'couponDelete', data: { couponId: c._id } })
     if (!res.result.success) {
       coupons.value.push(c)
+      updateCoupons()
       uni.showToast({ title: res.result.error || '删除失败', icon: 'none' })
     } else {
       uni.showToast({ title: '已删除', icon: 'success' })
     }
   } catch {
     coupons.value.push(c)
+    updateCoupons()
     uni.showToast({ title: '删除失败', icon: 'none' })
   }
 }
@@ -188,11 +153,13 @@ async function saveName() {
     uni.showToast({ title: '修改失败', icon: 'none' })
   }
 }
+
 async function useCoupon(c: any) {
   try {
     await wx.cloud.callFunction({ name: 'shopUseCoupon', data: { couponId: c._id } })
     c.status = 'used'
     c.usedAt = new Date().toISOString()
+    updateCoupons()
     uni.showToast({ title: '已使用', icon: 'success' })
   } catch {
     uni.showToast({ title: '使用失败', icon: 'none' })
@@ -211,55 +178,24 @@ async function setGender(g: string) {
   }
 }
 
-const stats = reactive([
-  { icon:'🛒', value:'0', unit:'个', label:'商城商品' },
-  { icon:'⭐', value:'0', unit:'个', label:'梦想完成' },
-])
+function onShowSettings() {
+  showSettings.value = true
+}
+
+watch(couponTab, updateCoupons)
 </script>
 
 <template>
   <page-layout>
-    <!-- 伴侣头像区 -->
-    <view class="couple-header">
-      <view class="avatars-row">
-        <view class="avatar-block">
-          <button open-type="chooseAvatar" @chooseavatar="onChooseAvatar" class="avatar-btn">
-            <image v-if="myAvatar && !myAvatarFailed" :src="myAvatar" class="avatar-img" mode="aspectFill" @error="myAvatarFailed = true" />
-            <text v-else class="a-emoji">{{ genderEmoji(myGender) }}</text>
-          </button>
-          <text class="a-name">你</text>
-        </view>
-        <view class="heart-wrap"><text class="heart-beat">❤️</text></view>
-        <view class="avatar-block">
-          <view class="avatar-circle">
-            <image v-if="partnerAvatar && !partnerAvatarFailed" :src="partnerAvatar" class="avatar-img" mode="aspectFill" @error="partnerAvatarFailed = true" />
-            <text v-else class="a-emoji">{{ genderEmoji(partnerGender) }}</text>
-          </view>
-          <text class="a-name">{{ partnerName }}</text>
-        </view>
-      </view>
-      <text class="couple-name">{{ coupleName }}</text>
-      <text class="days">在一起 {{ togetherDays }} 天</text>
+    <!-- 开启通知 -->
+    <view class="sub-banner" v-if="!subscribed && !subBannerClosed" @tap="requestSubscribe">
+      <text class="sb-icon">🔔</text>
+      <text class="sb-text">开启通知，对方用券时提醒你</text>
+      <text class="sb-btn" @tap.stop="dismissSubBanner">✕</text>
     </view>
 
-    <!-- 互动币 -->
-    <coin-display :coupleId="store.coupleId" />
-
-    <!-- 数据面板 -->
-    <view class="data-grid">
-      <view class="section-header"><text class="s-title">📊 关系数据</text></view>
-      <view class="grid">
-        <view class="g-item" v-for="s in stats" :key="s.label">
-          <text class="g-icon">{{ s.icon }}</text>
-          <text class="g-value">{{ s.value }}</text>
-          <text class="g-unit" v-if="s.unit">{{ s.unit }}</text>
-          <text class="g-label">{{ s.label }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 我的券包 -->
-    <view class="menu-card" @tap="showCoupons = true">
+    <!-- 券包 -->
+    <view class="menu-card" @tap="openCoupons">
       <view class="m-left"><text class="m-icon">🎫</text><text class="m-title">券包</text></view>
       <view class="m-right">
         <view class="m-badge" v-if="unusedCount > 0">{{ unusedCount }}张可用</view>
@@ -338,79 +274,68 @@ const stats = reactive([
 </template>
 
 <style lang="scss" scoped>
-.couple-header {
-  background: linear-gradient(135deg, #FFB800, #FFCC00 50%, #FFD54F);
-  border-radius: 28rpx; padding: 40rpx 30rpx 30rpx; margin-bottom: 24rpx;
-  display: flex; flex-direction: column; align-items: center;
-  box-shadow: 0 12rpx 36rpx rgba(255,184,0,0.25);
+.sub-banner {
+  background: linear-gradient(135deg, #FF8F00, #FFB300); border-radius: 20rpx;
+  padding: 20rpx 24rpx; margin-bottom: 16rpx; display: flex; align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(255,143,0,0.25);
 }
-.avatars-row { display:flex; align-items:center; margin-bottom:18rpx; }
-.avatar-block { display:flex; flex-direction:column; align-items:center; }
-.avatar-circle { width:104rpx; height:104rpx; border-radius:50%; background:rgba(255,255,255,0.3); backdrop-filter:blur(6rpx); display:flex; align-items:center; justify-content:center; border:3rpx solid rgba(255,255,255,0.5); overflow:hidden; }
-.avatar-btn { width:104rpx; height:104rpx; border-radius:50%; padding:0; margin:0; background:rgba(255,255,255,0.3); border:3rpx solid rgba(255,255,255,0.5); overflow:hidden; display:flex; align-items:center; justify-content:center; line-height:1; }
-.avatar-btn::after { border:none; }
-.avatar-img { width:104rpx; height:104rpx; border-radius:50%; display:block; }
-.a-emoji { font-size:48rpx; color:#333; }
-.a-name { margin-top:8rpx; font-size:24rpx; color:#fff; font-weight:600; }
-.heart-wrap { margin:0 40rpx; padding-bottom:30rpx; }
-.heart-beat { font-size:44rpx; animation:heartbeat 1.2s ease-in-out infinite; display:block; }
-@keyframes heartbeat { 0%,100%{transform:scale(1)} 25%{transform:scale(1.2)} 50%{transform:scale(1)} 75%{transform:scale(1.15)} }
-.couple-name { font-size:36rpx; font-weight:700; color:#fff; margin-bottom:8rpx; letter-spacing:2rpx; }
-.days { font-size:26rpx; color:rgba(255,255,255,0.8); }
+.sb-icon { font-size: 34rpx; margin-right: 12rpx; }
+.sb-text { flex: 1; font-size: 24rpx; color: #fff; }
+.sb-btn {
+  background: rgba(255,255,255,0.25); border-radius: 50%; width: 44rpx; height: 44rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24rpx; color: #fff; font-weight: 700; flex-shrink: 0;
+}
 
-.data-grid { background:rgba(255,255,255,0.85); backdrop-filter:blur(16rpx); border-radius:20rpx; padding:20rpx 10rpx 10rpx; margin-bottom:16rpx; box-shadow:0 4rpx 20rpx rgba(255,184,0,0.06); border:1rpx solid rgba(255,255,255,0.5); }
-.section-header { padding:0 20rpx 16rpx; border-bottom:1rpx solid rgba(255,184,0,0.06); margin-bottom:8rpx; }
-.s-title { font-size:28rpx; font-weight:700; color:#333; }
-.grid { display:flex; flex-wrap:wrap; }
-.g-item { width:33.33%; display:flex; flex-direction:column; align-items:center; padding:18rpx 8rpx; box-sizing:border-box; }
-.g-icon { font-size:32rpx; margin-bottom:6rpx; }
-.g-value { font-size:34rpx; font-weight:800; color:#FFB800; }
-.g-unit { font-size:20rpx; color:#999; }
-.g-label { font-size:20rpx; color:#999; margin-top:2rpx; }
+.menu-card {
+  background: rgba(255,255,255,0.85); backdrop-filter: blur(16rpx);
+  border-radius: 20rpx; padding: 26rpx 28rpx; margin-bottom: 14rpx;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 4rpx 16rpx rgba(255,184,0,0.04);
+  border: 1rpx solid rgba(255,255,255,0.5); transition: transform 0.15s;
+}
+.menu-card:active { transform: scale(0.98); }
+.m-left { display: flex; align-items: center; }
+.m-icon { font-size: 32rpx; margin-right: 14rpx; }
+.m-title { font-size: 28rpx; font-weight: 600; color: #333; }
+.m-right { display: flex; align-items: center; }
+.m-badge { font-size: 22rpx; color: #FFB800; background: rgba(255,184,0,0.08); border-radius: 16rpx; padding: 4rpx 14rpx; margin-right: 8rpx; }
+.m-arrow { font-size: 36rpx; color: #ddd; }
 
-.menu-card { background:rgba(255,255,255,0.85); backdrop-filter:blur(16rpx); border-radius:20rpx; padding:26rpx 28rpx; margin-bottom:14rpx; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4rpx 16rpx rgba(255,184,0,0.04); border:1rpx solid rgba(255,255,255,0.5); transition:transform 0.15s; }
-.menu-card:active { transform:scale(0.98); }
-.m-left { display:flex; align-items:center; }
-.m-icon { font-size:32rpx; margin-right:14rpx; }
-.m-title { font-size:28rpx; font-weight:600; color:#333; }
-.m-right { display:flex; align-items:center; }
-.m-badge { font-size:22rpx; color:#FFB800; background:rgba(255,184,0,0.08); border-radius:16rpx; padding:4rpx 14rpx; margin-right:8rpx; }
-.m-arrow { font-size:36rpx; color:#ddd; }
-
-.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); backdrop-filter:blur(4rpx); z-index:1000; display:flex; align-items:flex-end; }
-.panel { width:100%; max-height:85vh; background:#fff; border-radius:32rpx 32rpx 0 0; display:flex; flex-direction:column; overflow:hidden; animation:slideUp 0.3s ease-out; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4rpx); z-index: 1000; display: flex; align-items: flex-end; }
+.panel { width: 100%; max-height: 85vh; background: #fff; border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease-out; }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.panel-header { display:flex; align-items:center; justify-content:space-between; padding:28rpx 30rpx; border-bottom:1rpx solid #FFF8E1; }
-.panel-title { font-size:32rpx; font-weight:700; color:#333; }
-.close-btn { width:44rpx; height:44rpx; border-radius:50%; background:#FFF8E1; display:flex; align-items:center; justify-content:center; font-size:26rpx; color:#FFB800; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 30rpx; border-bottom: 1rpx solid #FFF8E1; }
+.panel-title { font-size: 32rpx; font-weight: 700; color: #333; }
+.close-btn { width: 44rpx; height: 44rpx; border-radius: 50%; background: #FFF8E1; display: flex; align-items: center; justify-content: center; font-size: 26rpx; color: #FFB800; }
 
-.coupon-tabs { display:flex; border-bottom:1rpx solid #FFF8E1; }
-.ctab { flex:1; text-align:center; padding:20rpx 0; font-size:26rpx; color:#999; }
-.ctab.active { color:#FFB800; font-weight:700; position:relative; }
-.ctab.active::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:40rpx; height:4rpx; background:#FFB800; border-radius:2rpx; }
-.coupon-list { flex:1; padding:16rpx 24rpx; max-height:50vh; }
-.c-card { display:flex; align-items:center; padding:22rpx 18rpx; border-radius:14rpx; border-left:6rpx solid #FFB800; background:#FFFDE7; position:relative; z-index:1; transition:transform 0.2s ease; }
-.c-card.used { border-left-color:#ccc; background:#F7F7F7; }
-.c-card.expired { border-left-color:#ddd; background:#F5F5F5; }
-.c-left { margin-right:14rpx; }
-.c-icon { font-size:36rpx; }
-.c-info { flex:1; }
-.c-name { font-size:26rpx; font-weight:600; color:#333; display:block; }
-.c-date { font-size:22rpx; color:#bbb; margin-top:4rpx; }
-.use-btn { padding:10rpx 24rpx; border-radius:20rpx; background:linear-gradient(135deg,#FFB800,#FFCC00); font-size:22rpx; font-weight:700; color:#fff; flex-shrink:0; }
+.coupon-tabs { display: flex; border-bottom: 1rpx solid #FFF8E1; }
+.ctab { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: #999; }
+.ctab.active { color: #FFB800; font-weight: 700; position: relative; }
+.ctab.active::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: #FFB800; border-radius: 2rpx; }
+.coupon-list { flex: 1; padding: 16rpx 24rpx; max-height: 50vh; }
+.c-card { display: flex; align-items: center; padding: 22rpx 18rpx; border-radius: 14rpx; border-left: 6rpx solid #FFB800; background: #FFFDE7; position: relative; z-index: 1; transition: transform 0.2s ease; }
+.c-card.used { border-left-color: #ccc; background: #F7F7F7; }
+.c-card.expired { border-left-color: #ddd; background: #F5F5F5; }
+.c-left { margin-right: 14rpx; }
+.c-icon { font-size: 36rpx; }
+.c-info { flex: 1; }
+.c-name { font-size: 26rpx; font-weight: 600; color: #333; display: block; }
+.c-date { font-size: 22rpx; color: #bbb; margin-top: 4rpx; }
+.use-btn { padding: 10rpx 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #FFB800, #FFCC00); font-size: 22rpx; font-weight: 700; color: #fff; flex-shrink: 0; }
 
 .coupon-card-wrap { position: relative; overflow: hidden; border-radius: 14rpx; margin-bottom: 14rpx; }
 .coupon-del-btn { position: absolute; right: 0; top: 0; bottom: 0; width: 140rpx; border-radius: 0 14rpx 14rpx 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
 .coupon-del-btn.show { background: #F44336; opacity: 1; }
 .coupon-del-btn .del-text { color: #fff; font-size: 26rpx; font-weight: 700; }
 
-.settings-body { padding:24rpx 28rpx; }
-.set-row { padding:20rpx 0; border-bottom:1rpx solid #F5F5F5; }
-.set-label { font-size:28rpx; font-weight:600; color:#333; display:block; margin-bottom:14rpx; }
-.set-val { font-size:26rpx; color:#FFB800; }
-.invite-code { font-size:32rpx; font-weight:800; color:#FFB800; letter-spacing:4rpx; }
-.invite-code.dim { color:#bbb; font-weight:400; letter-spacing:0; }
-.set-input { font-size:26rpx; border:2rpx solid #FFD54F; border-radius:12rpx; padding:12rpx 16rpx; }
+.settings-body { padding: 24rpx 28rpx; }
+.set-row { padding: 20rpx 0; border-bottom: 1rpx solid #F5F5F5; }
+.set-label { font-size: 28rpx; font-weight: 600; color: #333; display: block; margin-bottom: 14rpx; }
+.set-val { font-size: 26rpx; color: #FFB800; }
+.invite-code { font-size: 32rpx; font-weight: 800; color: #FFB800; letter-spacing: 4rpx; }
+.invite-code.dim { color: #bbb; font-weight: 400; letter-spacing: 0; }
+.set-input { font-size: 26rpx; border: 2rpx solid #FFD54F; border-radius: 12rpx; padding: 12rpx 16rpx; }
 .gender-btns { display: flex; gap: 16rpx; }
 .g-btn { flex: 1; text-align: center; padding: 16rpx; border-radius: 16rpx; font-size: 26rpx; color: #999; border: 2rpx solid #F0F0F0; background: #FAFAFA; }
 .g-btn.sel { color: #FF9800; border-color: #FF9800; background: #FFF3E0; font-weight: 700; }

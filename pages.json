@@ -22,7 +22,7 @@
     },
     {
       "path": "pages/profile/index",
-      "style": { "navigationBarTitleText": "我们", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "style": { "navigationBarTitleText": "更多", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     }
   ],
   "globalStyle": {
@@ -41,7 +41,7 @@
       { "pagePath": "pages/calendar/index", "text": "日历", "iconPath": "static/tabbar/tasks.png", "selectedIconPath": "static/tabbar/tasks-active.png" },
       { "pagePath": "pages/arcade/index", "text": "乐园", "iconPath": "static/tabbar/arcade.png", "selectedIconPath": "static/tabbar/arcade-active.png" },
       { "pagePath": "pages/future/index", "text": "梦想", "iconPath": "static/tabbar/future.png", "selectedIconPath": "static/tabbar/future-active.png" },
-      { "pagePath": "pages/profile/index", "text": "我们", "iconPath": "static/tabbar/profile.png", "selectedIconPath": "static/tabbar/profile-active.png" }
+      { "pagePath": "pages/profile/index", "text": "更多", "iconPath": "static/tabbar/more.png", "selectedIconPath": "static/tabbar/more-active.png" }
     ]
   },
   "easycom": {
