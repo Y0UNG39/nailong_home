@@ -25,29 +25,19 @@ const calendarDays = computed(() => {
   const m = month.value - 1
   const firstDay = new Date(y, m, 1).getDay()
   const daysInMonth = new Date(y, m + 1, 0).getDate()
-  const daysInPrev = new Date(y, m, 0).getDate()
 
-  const days: { date: string; day: number; isCurrentMonth: boolean; isToday: boolean }[] = []
+  const days: { date: string; day: number; isToday: boolean }[] = []
 
-  // 上月补位
-  for (let i = firstDay - 1; i >= 0; i--) {
-    const d = daysInPrev - i
-    const dt = new Date(y, m - 1, d)
-    days.push({ date: formatDate(dt), day: d, isCurrentMonth: false, isToday: false })
+  // 上月补空位（占位但不可点击）
+  for (let i = 0; i < firstDay; i++) {
+    days.push({ date: '', day: 0, isToday: false })
   }
 
   // 本月
   const today = formatDate(new Date())
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(y, m, d)
-    days.push({ date: formatDate(dt), day: d, isCurrentMonth: true, isToday: formatDate(dt) === today })
-  }
-
-  // 下月补位（凑满 42 格）
-  const remaining = 42 - days.length
-  for (let d = 1; d <= remaining; d++) {
-    const dt = new Date(y, m + 1, d)
-    days.push({ date: formatDate(dt), day: d, isCurrentMonth: false, isToday: false })
+    days.push({ date: formatDate(dt), day: d, isToday: formatDate(dt) === today })
   }
 
   return days
@@ -69,6 +59,34 @@ function prevMonth() {
 function nextMonth() {
   if (month.value === 12) { year.value++; month.value = 1 }
   else month.value++
+}
+
+function goToday() {
+  const n = new Date()
+  year.value = n.getFullYear()
+  month.value = n.getMonth() + 1
+  selectedDate.value = formatDate(n)
+}
+
+// ---- 年月选择器 ----
+const showPicker = ref(false)
+const pickerYear = ref(year.value)
+const pickerMonth = ref(month.value)
+
+function openPicker() {
+  pickerYear.value = year.value
+  pickerMonth.value = month.value
+  showPicker.value = true
+}
+
+function pickerPrevYear() { pickerYear.value-- }
+function pickerNextYear() { pickerYear.value++ }
+
+function pickerSelectMonth(m: number) {
+  pickerMonth.value = m
+  year.value = pickerYear.value
+  month.value = m
+  showPicker.value = false
 }
 
 // ---- 选中日期 ----
@@ -229,9 +247,14 @@ onShow(() => loadEntries())
   <page-layout>
     <!-- 月份导航 -->
     <view class="cal-nav">
-      <view class="cal-arrow" @tap="prevMonth">‹</view>
-      <text class="cal-title">{{ year }}年{{ month }}月</text>
-      <view class="cal-arrow" @tap="nextMonth">›</view>
+      <view class="cal-nav-left">
+        <view class="cal-arrow" @tap="prevMonth">‹</view>
+        <text class="cal-title" @tap="openPicker">{{ year }}年{{ month }}月</text>
+        <view class="cal-arrow" @tap="nextMonth">›</view>
+      </view>
+      <view class="cal-today" @tap="goToday">
+        <text class="cal-today-t">今</text>
+      </view>
     </view>
 
     <!-- 星期行 -->
@@ -242,13 +265,13 @@ onShow(() => loadEntries())
     <!-- 日历格子 -->
     <view class="cal-grid">
       <view
-        v-for="d in calendarDays" :key="d.date"
+        v-for="(d, i) in calendarDays" :key="i"
         class="cal-cell"
-        :class="{ today: d.isToday, selected: d.date === selectedDate, dim: !d.isCurrentMonth }"
-        @tap="selectDay(d.date)"
+        :class="{ today: d.isToday, selected: d.date === selectedDate, empty: !d.day }"
+        @tap="d.day && selectDay(d.date)"
       >
-        <text class="cal-day-num">{{ d.day }}</text>
-        <view v-if="entryDates.has(d.date)" class="cal-dot" />
+        <text v-if="d.day" class="cal-day-num">{{ d.day }}</text>
+        <view v-if="d.date && entryDates.has(d.date)" class="cal-dot" />
       </view>
     </view>
 
@@ -280,6 +303,27 @@ onShow(() => loadEntries())
           </view>
           <text class="entry-content">{{ entry.content }}</text>
           <image v-if="entry.imageUrl" :src="entry.imageUrl" class="entry-img" mode="aspectFill" @tap.stop="previewImage(entry.imageUrl)" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 年月选择器 -->
+    <view v-if="showPicker" class="picker-mask" @tap="showPicker = false">
+      <view class="picker-sheet" @tap.stop>
+        <view class="picker-year-row">
+          <view class="picker-arrow" @tap="pickerPrevYear">‹</view>
+          <text class="picker-year">{{ pickerYear }}年</text>
+          <view class="picker-arrow" @tap="pickerNextYear">›</view>
+        </view>
+        <view class="picker-months">
+          <view
+            v-for="m in 12" :key="m"
+            class="picker-month"
+            :class="{ on: pickerYear === year && m === month }"
+            @tap="pickerSelectMonth(m)"
+          >
+            <text>{{ m }}月</text>
+          </view>
         </view>
       </view>
     </view>
@@ -325,8 +369,11 @@ onShow(() => loadEntries())
 <style lang="scss" scoped>
 /* ---- 月份导航 ---- */
 .cal-nav {
-  display: flex; align-items: center; justify-content: center; gap: 40rpx;
-  padding: 8rpx 0 16rpx;
+  display: flex; align-items: center; justify-content: center;
+  padding: 8rpx 0 16rpx; position: relative;
+}
+.cal-nav-left {
+  display: flex; align-items: center; gap: 16rpx;
 }
 .cal-arrow {
   width: 56rpx; height: 56rpx; border-radius: 50%;
@@ -337,6 +384,53 @@ onShow(() => loadEntries())
 }
 .cal-arrow:active { transform: scale(0.92); }
 .cal-title { font-size: 30rpx; font-weight: 700; color: #333; }
+.cal-today {
+  width: 56rpx; height: 56rpx; border-radius: 50%;
+  background: linear-gradient(135deg, #FF9800, #FFB74D);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(255,152,0,0.3);
+  position: absolute; right: 0;
+}
+.cal-today:active { transform: scale(0.92); }
+.cal-today-t { font-size: 22rpx; color: #fff; font-weight: 700; }
+
+/* ---- 年月选择器 ---- */
+.picker-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(4rpx);
+  z-index: 100; display: flex; align-items: center; justify-content: center;
+}
+.picker-sheet {
+  width: 580rpx; background: #fff; border-radius: 24rpx;
+  padding: 32rpx; animation: pickerIn 0.2s ease-out;
+}
+@keyframes pickerIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.picker-year-row {
+  display: flex; align-items: center; justify-content: center; gap: 40rpx;
+  margin-bottom: 24rpx;
+}
+.picker-arrow {
+  width: 48rpx; height: 48rpx; border-radius: 50%;
+  background: #F5F5F5; display: flex; align-items: center; justify-content: center;
+  font-size: 32rpx; color: #666; font-weight: 700;
+}
+.picker-arrow:active { background: #E0E0E0; }
+.picker-year { font-size: 32rpx; font-weight: 700; color: #333; }
+.picker-months {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx;
+}
+.picker-month {
+  text-align: center; padding: 16rpx 0; border-radius: 12rpx;
+  background: #F5F5F5; font-size: 26rpx; color: #666;
+}
+.picker-month:active { background: #E0E0E0; }
+.picker-month.on {
+  background: linear-gradient(135deg, #FF9800, #FFB74D);
+  color: #fff; font-weight: 700;
+}
 
 /* ---- 星期行 ---- */
 .cal-week {
@@ -363,7 +457,7 @@ onShow(() => loadEntries())
 .cal-day-num {
   font-size: 26rpx; color: #333; font-weight: 500;
 }
-.cal-cell.dim .cal-day-num { color: #ccc; }
+.cal-cell.empty { pointer-events: none; }
 .cal-cell.today .cal-day-num {
   color: #fff; background: #FFB800; border-radius: 50%;
   width: 44rpx; height: 44rpx; line-height: 44rpx; text-align: center;
