@@ -23,6 +23,10 @@
     {
       "path": "pages/profile/index",
       "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/expense/index",
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     }
   ],
   "globalStyle": {

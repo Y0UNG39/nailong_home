@@ -1,7 +1,7 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
-const COLS = ['users','couples','diary_entries','coin_logs','shop_items','coupons','dreams']
+const COLS = ['users','couples','diary_entries','coin_logs','shop_items','coupons','dreams','expenses']
 exports.main = async () => {
   const results = {}; let existing = 0, missing = 0
   for (const name of COLS) {

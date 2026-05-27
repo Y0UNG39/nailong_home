@@ -5,7 +5,8 @@ import { useAppStore } from '@/store/index'
 import { daysBetween } from '@/utils/date'
 
 const store = useAppStore()
-const loading = ref(false)
+const loading = ref(true)
+const hasLoaded = ref(false)
 
 const coupleName = ref('奶龙的家')
 const togetherSince = ref('2019-05-01')
@@ -25,7 +26,7 @@ function genderEmoji(g: string) { return g === 'female' ? '👩' : '🧑' }
 
 async function loadData() {
   if (!store.coupleId) return
-  loading.value = true
+  if (!hasLoaded.value) loading.value = true
   try {
     const res = await wx.cloud.callFunction({ name: 'getProfileData', data: { coupleId: store.coupleId } })
     if (!res.result.success) return
@@ -33,14 +34,17 @@ async function loadData() {
     coupleName.value = res.result.name || '奶龙的家'
     store.setBalance(res.result.coins || 0)
 
-    if (res.result.myAvatar) {
+    if (res.result.myAvatar && res.result.myAvatar !== myAvatar.value) {
       myAvatar.value = res.result.myAvatar
     }
     myGender.value = store.user?.gender || ''
 
     if (res.result.partner) {
-      partnerAvatar.value = res.result.partner.avatar || ''
-      partnerAvatarFailed.value = false
+      const newPartnerAvatar = res.result.partner.avatar || ''
+      if (newPartnerAvatar !== partnerAvatar.value) {
+        partnerAvatar.value = newPartnerAvatar
+        partnerAvatarFailed.value = false
+      }
       partnerGender.value = res.result.partner.gender || ''
       store.setPartner(res.result.partner)
     }
@@ -48,6 +52,7 @@ async function loadData() {
     const s = res.result.stats || {}
     dreamDone.value = s.dreams || 0
     dreamTotal.value = s.dreamsTotal || 0
+    hasLoaded.value = true
   } catch {} finally {
     loading.value = false
   }
@@ -81,7 +86,9 @@ async function onChooseAvatar(e: any) {
   }
 }
 
-onShow(() => loadData())
+onShow(() => {
+  if (!hasLoaded.value) loadData()
+})
 onPullDownRefresh(async () => {
   await loadData()
   uni.stopPullDownRefresh()
@@ -92,6 +99,10 @@ function goArcade(tab: string) {
   setTimeout(() => {
     uni.switchTab({ url: '/pages/arcade/index' })
   }, 50)
+}
+
+function goExpense() {
+  uni.navigateTo({ url: '/pages/expense/index' })
 }
 
 myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
@@ -147,6 +158,10 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
         <view class="qe-item" @tap="goArcade('dice')">
           <view class="qe-icon-wrap dice"><text class="qe-icon">🎲</text></view>
           <text class="qe-label">骰子</text>
+        </view>
+        <view class="qe-item" @tap="goExpense">
+          <view class="qe-icon-wrap expense"><text class="qe-icon">💰</text></view>
+          <text class="qe-label">记账</text>
         </view>
       </view>
 
@@ -222,6 +237,7 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
 .qe-icon-wrap.wheel { background: #FCE4EC; }
 .qe-icon-wrap.scratch { background: #E8F5E9; }
 .qe-icon-wrap.dice { background: #E3F2FD; }
+.qe-icon-wrap.expense { background: #FFF8E1; }
 .qe-icon-wrap:active { transform: scale(0.92); }
 .qe-icon { font-size: 44rpx; }
 .qe-label { font-size: 24rpx; color: #666; font-weight: 600; }

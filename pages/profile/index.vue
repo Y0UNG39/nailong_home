@@ -49,6 +49,9 @@ async function loadSettingsData() {
     }
 
     myGender.value = store.user?.gender || ''
+
+    coupons.value = res.result.coupons || []
+    updateCoupons()
   } catch {}
 }
 
@@ -182,6 +185,10 @@ function onShowSettings() {
   showSettings.value = true
 }
 
+function goExpense() {
+  uni.navigateTo({ url: '/pages/expense/index' })
+}
+
 watch(couponTab, updateCoupons)
 </script>
 
@@ -201,6 +208,12 @@ watch(couponTab, updateCoupons)
         <view class="m-badge" v-if="unusedCount > 0">{{ unusedCount }}张可用</view>
         <text class="m-arrow">›</text>
       </view>
+    </view>
+
+    <!-- 记账 -->
+    <view class="menu-card" @tap="goExpense">
+      <view class="m-left"><text class="m-icon">💰</text><text class="m-title">记账</text></view>
+      <view class="m-right"><text class="m-arrow">›</text></view>
     </view>
 
     <!-- 设置 -->

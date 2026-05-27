@@ -11,7 +11,8 @@ const year = ref(now.getFullYear())
 const month = ref(now.getMonth() + 1)
 const selectedDate = ref(formatDate(now))
 const entries = ref<any[]>([])
-const loading = ref(false)
+const loading = ref(true)
+const hasLoaded = ref(false)
 
 function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -102,13 +103,14 @@ const dayEntries = computed(() => {
 // ---- 加载数据 ----
 async function loadEntries() {
   if (!store.coupleId) return
-  loading.value = true
+  if (!hasLoaded.value) loading.value = true
   try {
     const res = await wx.cloud.callFunction({
       name: 'getDiaries',
       data: { coupleId: store.coupleId, year: year.value, month: month.value }
     })
     if (res.result.success) entries.value = res.result.entries || []
+    hasLoaded.value = true
   } catch {} finally {
     loading.value = false
   }
