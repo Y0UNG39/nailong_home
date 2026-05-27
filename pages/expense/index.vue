@@ -183,6 +183,20 @@ async function deleteEntry(entry: any) {
     .catch(() => loadExpenses())
 }
 
+async function deleteAllEntries() {
+  const ok = await uni.showModal({ title: '确认清空', content: '删除本月所有记录？不可恢复' })
+  if (!ok.confirm) return
+
+  const toDelete = [...entries.value]
+  entries.value = []
+  stats.value = { total: 0, myTotal: 0, partnerTotal: 0 }
+
+  for (const e of toDelete) {
+    wx.cloud.callFunction({ name: 'deleteExpense', data: { entryId: e._id } })
+      .catch(() => {})
+  }
+}
+
 onShow(() => loadExpenses())
 </script>
 
@@ -259,7 +273,10 @@ onShow(() => loadExpenses())
 
     <!-- 记录列表 -->
     <view v-else class="record-list">
-      <text class="list-title">最近记录</text>
+      <view class="list-title-row">
+        <text class="list-title">最近记录</text>
+        <text v-if="entries.length > 0" class="clear-all-btn" @tap="deleteAllEntries">清空</text>
+      </view>
       <view v-if="entries.length === 0" class="empty-hint">
         <text>还没有记录，记一笔吧</text>
       </view>
@@ -357,7 +374,10 @@ onShow(() => loadExpenses())
 
 /* ---- 记录列表 ---- */
 .record-list { margin-top: 8rpx; }
-.list-title { font-size: 26rpx; font-weight: 700; color: #666; display: block; margin-bottom: 16rpx; }
+.list-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
+.list-title { font-size: 26rpx; font-weight: 700; color: #666; }
+.clear-all-btn { font-size: 24rpx; color: #F44336; font-weight: 600; }
+.clear-all-btn:active { opacity: 0.6; }
 .empty-hint { text-align: center; padding: 48rpx 0; font-size: 26rpx; color: #ccc; }
 
 .record-wrap { position: relative; overflow: hidden; border-radius: 16rpx; margin-bottom: 12rpx; }
