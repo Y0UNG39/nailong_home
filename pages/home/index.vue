@@ -47,7 +47,7 @@ async function loadData() {
 
     const s = res.result.stats || {}
     dreamDone.value = s.dreams || 0
-    dreamTotal.value = Math.max(s.dreams || 0, 8)
+    dreamTotal.value = s.dreamsTotal || 0
   } catch {} finally {
     loading.value = false
   }

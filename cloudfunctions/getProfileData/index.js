@@ -19,9 +19,10 @@ exports.main = async (event) => {
     }
 
     // 并行取用户、统计、券
-    const [uRes, dreamsCnt, shopCnt, couponsRes] = await Promise.all([
+    const [uRes, dreamsCnt, dreamsTotal, shopCnt, couponsRes] = await Promise.all([
       db.collection('users').where({ _openid: OPENID }).get(),
       db.collection('dreams').where({ coupleId, status: 'completed' }).count(),
+      db.collection('dreams').where({ coupleId }).count(),
       db.collection('shop_items').where({ coupleId }).count(),
       db.collection('coupons').where({ coupleId }).orderBy('createdAt', 'desc').get()
     ])
@@ -88,7 +89,8 @@ exports.main = async (event) => {
       myAvatar: myAvatarUrl,
       stats: {
         shop: shopCnt.total,
-        dreams: dreamsCnt.total
+        dreams: dreamsCnt.total,
+        dreamsTotal: dreamsTotal.total
       },
       coupons: couponsRes.data,
       partner: partnerData ? {
