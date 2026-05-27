@@ -7,8 +7,7 @@ exports.main = async (event) => {
   if (!coupleId) return { success: false, error: 'missing coupleId' }
 
   try {
-    const [tasks, coupons, dreams, shopItems] = await Promise.all([
-      db.collection('tasks').where({ coupleId }).count(),
+    const [coupons, dreams, shopItems] = await Promise.all([
       db.collection('coupons').where({ coupleId }).count(),
       db.collection('dreams').where({ coupleId, status: 'completed' }).count(),
       db.collection('shop_items').where({ coupleId }).count()
@@ -17,7 +16,6 @@ exports.main = async (event) => {
     return {
       success: true,
       stats: {
-        tasks: tasks.total,
         shop: shopItems.total,
         dreams: dreams.total
       }

@@ -125,7 +125,7 @@
 
 ### TabBar 图标
 
-- 需要日历图标文件：static/tabbar/calendar.png 和 calendar-active.png
+- 复用现有 tasks 图标文件，只改 pages.json 中的文字为"日历"
 
 ## 不动的部分
 

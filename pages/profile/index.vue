@@ -66,9 +66,8 @@ async function loadProfileData() {
 
     // 统计
     const s = res.result.stats || {}
-    stats[0].value = String(s.tasks || 0)
-    stats[1].value = String(s.shop || 0)
-    stats[2].value = String(s.dreams || 0)
+    stats[0].value = String(s.shop || 0)
+    stats[1].value = String(s.dreams || 0)
 
     // 券
     coupons.value = res.result.coupons || []
@@ -213,7 +212,6 @@ async function setGender(g: string) {
 }
 
 const stats = reactive([
-  { icon:'✅', value:'0', unit:'次', label:'累计任务' },
   { icon:'🛒', value:'0', unit:'个', label:'商城商品' },
   { icon:'⭐', value:'0', unit:'个', label:'梦想完成' },
 ])

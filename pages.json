@@ -9,8 +9,8 @@
       "style": { "navigationBarTitleText": "奶龙的家", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800", "enablePullDownRefresh": true }
     },
     {
-      "path": "pages/tasks/index",
-      "style": { "navigationBarTitleText": "任务", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "path": "pages/calendar/index",
+      "style": { "navigationBarTitleText": "日历", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
     {
       "path": "pages/arcade/index",
@@ -38,7 +38,7 @@
     "borderStyle": "white",
     "list": [
       { "pagePath": "pages/home/index", "text": "首页", "iconPath": "static/tabbar/home.png", "selectedIconPath": "static/tabbar/home-active.png" },
-      { "pagePath": "pages/tasks/index", "text": "任务", "iconPath": "static/tabbar/tasks.png", "selectedIconPath": "static/tabbar/tasks-active.png" },
+      { "pagePath": "pages/calendar/index", "text": "日历", "iconPath": "static/tabbar/tasks.png", "selectedIconPath": "static/tabbar/tasks-active.png" },
       { "pagePath": "pages/arcade/index", "text": "乐园", "iconPath": "static/tabbar/arcade.png", "selectedIconPath": "static/tabbar/arcade-active.png" },
       { "pagePath": "pages/future/index", "text": "梦想", "iconPath": "static/tabbar/future.png", "selectedIconPath": "static/tabbar/future-active.png" },
       { "pagePath": "pages/profile/index", "text": "我们", "iconPath": "static/tabbar/profile.png", "selectedIconPath": "static/tabbar/profile-active.png" }
@@ -48,7 +48,6 @@
     "autoscan": true,
     "custom": {
       "^page-layout": "@/components/page-layout/index.vue",
-      "^task-card": "@/components/task-card/index.vue",
       "^coin-display": "@/components/coin-display/index.vue",
       "^shop-item": "@/components/shop-item/index.vue",
       "^dream-card": "@/components/dream-card/index.vue",
