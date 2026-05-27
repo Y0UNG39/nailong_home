@@ -7,24 +7,26 @@ const store = useAppStore()
 const loading = ref(true)
 const hasLoaded = ref(false)
 
-// ---- 分类 ----
+// ---- 分类（去掉礼物）----
 const categories = [
   { key: '吃饭', icon: '🍜' },
   { key: '交通', icon: '🚗' },
-  { key: '礼物', icon: '🎁' },
   { key: '娱乐', icon: '🎮' },
   { key: '其他', icon: '📦' }
 ]
 const selectedCategory = ref('吃饭')
-const selectedPayer = ref('me') // 'me' | 'partner'
+const selectedPayer = ref(uni.getStorageSync('expense_payer') || 'me')
+
+function selectCategory(key: string) { selectedCategory.value = key }
+function selectPayer(who: string) {
+  selectedPayer.value = who
+  uni.setStorageSync('expense_payer', who)
+}
 
 // ---- 表单 ----
 const amount = ref('')
 const note = ref('')
 const saving = ref(false)
-
-function selectCategory(key: string) { selectedCategory.value = key }
-function selectPayer(who: string) { selectedPayer.value = who }
 
 // ---- 数据 ----
 const entries = ref<any[]>([])
@@ -84,7 +86,6 @@ async function saveExpense() {
   const paidBy = selectedPayer.value === 'me' ? store.openid : (store.partner?.openid || '')
   const today = new Date().toISOString().slice(0, 10)
 
-  // 乐观更新
   const tempId = 'temp_' + Date.now()
   const tempEntry = {
     _id: tempId,
@@ -101,7 +102,6 @@ async function saveExpense() {
   if (selectedPayer.value === 'me') stats.value.myTotal += num
   else stats.value.partnerTotal += num
 
-  // 清空表单
   amount.value = ''
   note.value = ''
 
@@ -127,6 +127,20 @@ async function saveExpense() {
   } finally {
     saving.value = false
   }
+}
+
+// ---- 删除 ----
+async function deleteEntry(entry: any) {
+  const ok = await uni.showModal({ title: '确认删除', content: '删除这条记录？' })
+  if (!ok.confirm) return
+
+  entries.value = entries.value.filter(e => e._id !== entry._id)
+  stats.value.total -= entry.amount
+  if (entry.paidBy === store.openid) stats.value.myTotal -= entry.amount
+  else stats.value.partnerTotal -= entry.amount
+
+  wx.cloud.callFunction({ name: 'deleteExpense', data: { entryId: entry._id } })
+    .catch(() => loadExpenses())
 }
 
 onShow(() => loadExpenses())
@@ -213,7 +227,11 @@ onShow(() => loadExpenses())
       <view v-if="entries.length === 0" class="empty-hint">
         <text>还没有记录，记一笔吧</text>
       </view>
-      <view v-for="entry in entries" :key="entry._id" class="record-card">
+      <view
+        v-for="entry in entries" :key="entry._id"
+        class="record-card"
+        @longpress="deleteEntry(entry)"
+      >
         <view class="record-left">
           <text class="record-icon">{{ getCategoryIcon(entry.category) }}</text>
           <view class="record-info">
@@ -305,6 +323,7 @@ onShow(() => loadExpenses())
   box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
   border: 1rpx solid rgba(255,255,255,0.5);
 }
+.record-card:active { transform: scale(0.98); }
 .record-left { display: flex; align-items: center; gap: 16rpx; }
 .record-icon { font-size: 36rpx; }
 .record-info { display: flex; flex-direction: column; }
