@@ -7,7 +7,7 @@ const store = useAppStore()
 const loading = ref(true)
 const hasLoaded = ref(false)
 
-// ---- 分类（去掉礼物）----
+// ---- 分类 ----
 const categories = [
   { key: '吃饭', icon: '🍜' },
   { key: '交通', icon: '🚗' },
@@ -129,11 +129,51 @@ async function saveExpense() {
   }
 }
 
-// ---- 删除 ----
+// ---- 左滑删除 ----
+const swipeStates = ref<Record<string, number>>({})
+const swipeStartX = ref(0)
+const swipingId = ref('')
+const delWidth = 140
+
+function onTouchStart(e: any, id: string) {
+  // 关闭其他已滑开的
+  for (const k in swipeStates.value) {
+    if (swipeStates.value[k] < 0) swipeStates.value[k] = 0
+  }
+  swipeStartX.value = e.touches[0].clientX
+  swipingId.value = id
+}
+
+function onTouchMove(e: any) {
+  if (!swipingId.value) return
+  const dx = e.touches[0].clientX - swipeStartX.value
+  const cur = swipeStates.value[swipingId.value] || 0
+  if (dx < 0) {
+    swipeStates.value[swipingId.value] = Math.max(dx, -delWidth)
+  } else {
+    swipeStates.value[swipingId.value] = Math.min(0, cur + dx * 0.3)
+  }
+}
+
+function onTouchEnd() {
+  const id = swipingId.value
+  if (!id) return
+  const cur = swipeStates.value[id] || 0
+  swipeStates.value[id] = cur < -delWidth / 2 ? -delWidth : 0
+  swipingId.value = ''
+}
+
+function getSwipeStyle(id: string): string {
+  const dx = swipeStates.value[id] || 0
+  if (!dx) return ''
+  return `transform:translateX(${dx}rpx)`
+}
+
 async function deleteEntry(entry: any) {
   const ok = await uni.showModal({ title: '确认删除', content: '删除这条记录？' })
   if (!ok.confirm) return
 
+  swipeStates.value[entry._id] = 0
   entries.value = entries.value.filter(e => e._id !== entry._id)
   stats.value.total -= entry.amount
   if (entry.paidBy === store.openid) stats.value.myTotal -= entry.amount
@@ -227,19 +267,26 @@ onShow(() => loadExpenses())
       <view v-if="entries.length === 0" class="empty-hint">
         <text>还没有记录，记一笔吧</text>
       </view>
-      <view
-        v-for="entry in entries" :key="entry._id"
-        class="record-card"
-        @longpress="deleteEntry(entry)"
-      >
-        <view class="record-left">
-          <text class="record-icon">{{ getCategoryIcon(entry.category) }}</text>
-          <view class="record-info">
-            <text class="record-note">{{ entry.note || entry.category }}</text>
-            <text class="record-meta">{{ formatTime(entry.createdAt) }} · {{ getPaidByLabel(entry) }}</text>
+      <view v-for="entry in entries" :key="entry._id" class="record-wrap">
+        <view
+          class="record-card"
+          :style="getSwipeStyle(entry._id)"
+          @touchstart="onTouchStart($event, entry._id)"
+          @touchmove="onTouchMove($event)"
+          @touchend="onTouchEnd()"
+        >
+          <view class="record-left">
+            <text class="record-icon">{{ getCategoryIcon(entry.category) }}</text>
+            <view class="record-info">
+              <text class="record-note">{{ entry.note || entry.category }}</text>
+              <text class="record-meta">{{ formatTime(entry.createdAt) }} · {{ getPaidByLabel(entry) }}</text>
+            </view>
           </view>
+          <text class="record-amount">-¥{{ entry.amount }}</text>
         </view>
-        <text class="record-amount">-¥{{ entry.amount }}</text>
+        <view class="record-del" :class="{ show: (swipeStates[entry._id] || 0) < 0 }" @tap="deleteEntry(entry)">
+          <text class="del-text">删除</text>
+        </view>
       </view>
     </view>
   </page-layout>
@@ -316,18 +363,28 @@ onShow(() => loadExpenses())
 .record-list { margin-top: 8rpx; }
 .list-title { font-size: 26rpx; font-weight: 700; color: #666; display: block; margin-bottom: 16rpx; }
 .empty-hint { text-align: center; padding: 48rpx 0; font-size: 26rpx; color: #ccc; }
+
+.record-wrap { position: relative; overflow: hidden; border-radius: 16rpx; margin-bottom: 12rpx; }
 .record-card {
   display: flex; align-items: center; justify-content: space-between;
   background: rgba(255,255,255,0.85); backdrop-filter: blur(16rpx);
-  border-radius: 16rpx; padding: 20rpx 24rpx; margin-bottom: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
+  padding: 20rpx 24rpx; position: relative; z-index: 1;
+  transition: transform 0.2s ease;
   border: 1rpx solid rgba(255,255,255,0.5);
 }
-.record-card:active { transform: scale(0.98); }
 .record-left { display: flex; align-items: center; gap: 16rpx; }
 .record-icon { font-size: 36rpx; }
 .record-info { display: flex; flex-direction: column; }
 .record-note { font-size: 28rpx; font-weight: 600; color: #333; }
 .record-meta { font-size: 22rpx; color: #bbb; margin-top: 4rpx; }
 .record-amount { font-size: 30rpx; font-weight: 700; color: #FF5722; flex-shrink: 0; }
+
+.record-del {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 140rpx; background: #F44336;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+.record-del.show { opacity: 1; }
+.del-text { color: #fff; font-size: 26rpx; font-weight: 700; }
 </style>
