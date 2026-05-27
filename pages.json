@@ -2,32 +2,32 @@
   "pages": [
     {
       "path": "pages/setup/index",
-      "style": { "navigationBarTitleText": "奶龙的家", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
     {
       "path": "pages/home/index",
-      "style": { "navigationBarTitleText": "奶龙的家", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800", "enablePullDownRefresh": true }
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800", "enablePullDownRefresh": true }
     },
     {
       "path": "pages/calendar/index",
-      "style": { "navigationBarTitleText": "日历", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
     {
       "path": "pages/arcade/index",
-      "style": { "navigationBarTitleText": "乐园", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
     {
       "path": "pages/future/index",
-      "style": { "navigationBarTitleText": "梦想", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
     {
       "path": "pages/profile/index",
-      "style": { "navigationBarTitleText": "更多", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "奶龙的家",
+    "navigationBarTitleText": "",
     "navigationBarBackgroundColor": "#FFB800",
     "backgroundColor": "#FFF8E1"
   },
