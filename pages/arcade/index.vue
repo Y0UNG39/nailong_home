@@ -353,12 +353,12 @@ function slotWeightedRandom(): string {
 function slotSpin() {
   if (slotSpinning.value) return
   if (store.balance < slotBet.value) {
-    store.addBalance(100)
+    const deficit = slotBet.value - store.balance
+    store.addBalance(deficit)
     wx.cloud.callFunction({
       name: 'coinChange',
-      data: { coupleId: store.coupleId, amount: 100, type: 'slot_bailout', description: '余额不足自动补贴' }
+      data: { coupleId: store.coupleId, amount: deficit, type: 'slot_bailout', description: '余额不足自动补贴' }
     })
-    uni.showToast({ title: '余额不足，已补贴100币', icon: 'none' })
   }
 
   store.addBalance(-slotBet.value)

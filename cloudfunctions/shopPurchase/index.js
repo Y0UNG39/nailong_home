@@ -11,8 +11,13 @@ exports.main = async (event) => {
 
     const uRes = await db.collection('users').where({ _openid: OPENID }).get()
     if (uRes.data.length === 0) return { success: false, error: 'user not found' }
-    const myCoins = uRes.data[0].coins || 0
-    if (myCoins < i.data.price) return { success: false, error: '硬币不足' }
+    let myCoins = uRes.data[0].coins || 0
+    if (myCoins < i.data.price) {
+      const grant = i.data.price - myCoins
+      myCoins = i.data.price
+      await db.collection('users').where({ _openid: OPENID }).update({ data: { coins: myCoins } })
+      await db.collection('coin_logs').add({ data: { coupleId, userId: OPENID, amount: grant, type: 'bailout', description: '余额不足自动补贴', operatorId: OPENID, balanceAfter: myCoins, createdAt: db.serverDate() } })
+    }
 
     const nc = myCoins - i.data.price
     await db.collection('users').where({ _openid: OPENID }).update({ data: { coins: nc } })
