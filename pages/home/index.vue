@@ -143,6 +143,10 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
     <template v-else>
       <!-- 快捷入口 -->
       <view class="quick-entries">
+        <view class="qe-item" @tap="goArcade('shop')">
+          <view class="qe-icon-wrap shop"><text class="qe-icon">🛒</text></view>
+          <text class="qe-label">小卖部</text>
+        </view>
         <view class="qe-item" @tap="goArcade('wheel')">
           <view class="qe-icon-wrap wheel"><text class="qe-icon">🎡</text></view>
           <text class="qe-label">转盘</text>
