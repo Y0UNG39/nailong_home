@@ -4,7 +4,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store/index'
 
 const store = useAppStore()
-const activeTab = ref<'shop' | 'wheel' | 'scratch' | 'dice'>('shop')
+const activeTab = ref<'shop' | 'wheel' | 'scratch' | 'dice' | 'slot'>('shop')
 
 // ---- 小卖部 ----
 const shopItems = ref<any[]>([])
@@ -224,7 +224,7 @@ onMounted(() => { scLoadSet(); scGen() })
 onShow(() => {
   loadArcadeData(); loadWheelItems()
   const tab = uni.getStorageSync('arcade_tab')
-  if (tab && ['shop', 'wheel', 'scratch', 'dice'].includes(tab)) {
+  if (tab && ['shop', 'wheel', 'scratch', 'dice', 'slot'].includes(tab)) {
     activeTab.value = tab
     uni.removeStorageSync('arcade_tab')
   }
@@ -320,6 +320,93 @@ function rollDice() {
   }, 60)
 }
 
+// ---- 老虎机 ----
+const SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🍉', '7️⃣']
+const SLOT_WEIGHTS = [30, 25, 20, 15, 10]
+const SLOT_TOTAL_WT = SLOT_WEIGHTS.reduce((a, b) => a + b, 0)
+const SLOT_PAYOUTS_3 = [3, 5, 10, 20, 50]
+const SLOT_PAYOUT_2 = 1.5
+
+const slotBet = ref(10)
+const slotReels = ref(['🍒', '🍒', '🍒'] as string[])
+const slotSpinning = ref(false)
+const slotResult = ref('')
+const slotWinAmount = ref(0)
+const slotShowResult = ref(false)
+const slotSpinPhase = ref([false, false, false])
+
+function slotSetBet(amount: number) {
+  if (slotSpinning.value) return
+  slotBet.value = amount
+}
+
+function slotWeightedRandom(): string {
+  const rand = Math.random() * SLOT_TOTAL_WT
+  let sum = 0
+  for (let i = 0; i < SLOT_SYMBOLS.length; i++) {
+    sum += SLOT_WEIGHTS[i]
+    if (rand <= sum) return SLOT_SYMBOLS[i]
+  }
+  return SLOT_SYMBOLS[0]
+}
+
+function slotSpin() {
+  if (slotSpinning.value) return
+  if (store.balance < slotBet.value) {
+    uni.showToast({ title: '互动币不足', icon: 'none' })
+    return
+  }
+
+  store.addBalance(-slotBet.value)
+  slotSpinning.value = true
+  slotShowResult.value = false
+  slotResult.value = ''
+  slotWinAmount.value = 0
+
+  const final = [slotWeightedRandom(), slotWeightedRandom(), slotWeightedRandom()]
+  slotSpinPhase.value = [true, true, true]
+
+  const delays = [800, 1400, 2000]
+  for (let i = 0; i < 3; i++) {
+    const reelIdx = i
+    const flicker = setInterval(() => {
+      slotReels.value[reelIdx] = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]
+    }, 60)
+
+    setTimeout(() => {
+      clearInterval(flicker)
+      slotReels.value[reelIdx] = final[reelIdx]
+      slotSpinPhase.value[reelIdx] = false
+
+      if (reelIdx === 2) {
+        setTimeout(() => slotSettle(final), 300)
+      }
+    }, delays[i])
+  }
+}
+
+function slotSettle(final: string[]) {
+  let win = 0
+  let msg = ''
+
+  if (final[0] === final[1] && final[1] === final[2]) {
+    const idx = SLOT_SYMBOLS.indexOf(final[0])
+    win = slotBet.value * SLOT_PAYOUTS_3[idx]
+    msg = `🎉 ${final[0]}${final[0]}${final[0]} +${win}币`
+  } else if (final[0] === final[1] || final[1] === final[2] || final[0] === final[2]) {
+    win = Math.floor(slotBet.value * SLOT_PAYOUT_2)
+    msg = `✨ 两个相同 +${win}币`
+  } else {
+    msg = `😅 再来一次`
+  }
+
+  if (win > 0) store.addBalance(win)
+  slotWinAmount.value = win
+  slotResult.value = msg
+  slotShowResult.value = true
+  slotSpinning.value = false
+}
+
 </script>
 
 <template>
@@ -330,6 +417,7 @@ function rollDice() {
       <view class="sub-tab" :class="{ active: activeTab === 'wheel' }" @tap="activeTab = 'wheel'">🎡 转盘</view>
       <view class="sub-tab" :class="{ active: activeTab === 'scratch' }" @tap="activeTab = 'scratch'">💳 刮刮卡</view>
       <view class="sub-tab" :class="{ active: activeTab === 'dice' }" @tap="activeTab = 'dice'">🎲 骰子</view>
+      <view class="sub-tab" :class="{ active: activeTab === 'slot' }" @tap="activeTab = 'slot'">🎰 老虎机</view>
     </view>
 
     <!-- 小卖部 -->
@@ -481,6 +569,53 @@ function rollDice() {
         <view class="dc-total" v-else><text class="dc-total-t">...</text></view>
         <view class="dc-btn" @tap="rollDice">
           <text class="dc-btn-t">{{ diceRolling ? '摇...' : '🎲 掷骰子' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 老虎机 -->
+    <view class="tab-content" v-if="activeTab === 'slot'">
+      <view class="slot-machine">
+        <!-- 余额 -->
+        <view class="slot-balance">
+          <text class="slot-bal-label">余额</text>
+          <text class="slot-bal-value">{{ store.balance }}🪙</text>
+        </view>
+
+        <!-- 转轴 -->
+        <view class="slot-reels">
+          <view v-for="(reel, i) in slotReels" :key="i" class="slot-reel" :class="{ spinning: slotSpinPhase[i] }">
+            <text class="slot-symbol">{{ reel }}</text>
+          </view>
+        </view>
+
+        <!-- 赔率表 -->
+        <view class="slot-paytable">
+          <view class="slot-pt-row" v-for="(s, i) in SLOT_SYMBOLS" :key="s">
+            <text class="slot-pt-sym">{{ s }}{{ s }}{{ s }}</text>
+            <text class="slot-pt-mult">{{ SLOT_PAYOUTS_3[i] }}x</text>
+          </view>
+          <view class="slot-pt-row">
+            <text class="slot-pt-sym">任意两个相同</text>
+            <text class="slot-pt-mult">1.5x</text>
+          </view>
+        </view>
+
+        <!-- 投注选择 -->
+        <view class="slot-bets">
+          <view v-for="b in [10, 50, 100]" :key="b" class="slot-bet-btn" :class="{ on: slotBet === b }" @tap="slotSetBet(b)">
+            <text>{{ b }}币</text>
+          </view>
+        </view>
+
+        <!-- 转按钮 -->
+        <view class="slot-spin-btn" :class="{ off: slotSpinning || store.balance < slotBet }" @tap="slotSpin">
+          <text class="slot-spin-t">{{ slotSpinning ? '转动中...' : '🎰 转一下' }}</text>
+        </view>
+
+        <!-- 结果 -->
+        <view class="slot-result" v-if="slotShowResult">
+          <text class="slot-res-text" :class="{ win: slotWinAmount > 0 }">{{ slotResult }}</text>
         </view>
       </view>
     </view>
@@ -691,4 +826,57 @@ function rollDice() {
   border-radius:44rpx; box-shadow:0 4rpx 20rpx rgba(255,152,0,0.4);
 }
 .dc-btn-t { font-size:30rpx; color:#fff; font-weight:700; }
+
+/* ---- 老虎机 ---- */
+.slot-machine { display:flex; flex-direction:column; align-items:center; padding:20rpx 0; }
+.slot-balance { display:flex; align-items:baseline; gap:12rpx; margin-bottom:32rpx; }
+.slot-bal-label { font-size:24rpx; color:#999; }
+.slot-bal-value { font-size:44rpx; font-weight:800; color:#FF9800; }
+
+.slot-reels { display:flex; gap:20rpx; margin-bottom:32rpx; }
+.slot-reel {
+  width:160rpx; height:180rpx; border-radius:20rpx;
+  background:#fff; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6rpx 24rpx rgba(0,0,0,0.1); border:3rpx solid #F0F0F0;
+  overflow:hidden; transition:border-color 0.2s;
+}
+.slot-reel.spinning { border-color:#FFB800; animation:slot-shake 0.06s linear infinite; }
+@keyframes slot-shake {
+  0% { transform:translateY(0); }
+  50% { transform:translateY(-6rpx); }
+  100% { transform:translateY(0); }
+}
+.slot-symbol { font-size:72rpx; }
+
+.slot-paytable {
+  display:flex; flex-wrap:wrap; gap:8rpx 24rpx; justify-content:center;
+  margin-bottom:28rpx; padding:16rpx 24rpx;
+  background:rgba(255,255,255,0.6); border-radius:16rpx;
+}
+.slot-pt-row { display:flex; align-items:center; gap:8rpx; }
+.slot-pt-sym { font-size:22rpx; color:#666; }
+.slot-pt-mult { font-size:22rpx; font-weight:700; color:#FF9800; }
+
+.slot-bets { display:flex; gap:16rpx; margin-bottom:28rpx; }
+.slot-bet-btn {
+  padding:16rpx 36rpx; border-radius:32rpx;
+  background:#F5F5F5; font-size:26rpx; color:#888;
+  border:2rpx solid transparent; transition:all 0.2s;
+}
+.slot-bet-btn.on { background:#FFF3E0; color:#FF9800; border-color:#FF9800; font-weight:600; }
+.slot-bet-btn:active { transform:scale(0.95); }
+
+.slot-spin-btn {
+  padding:24rpx 80rpx; border-radius:48rpx;
+  background:linear-gradient(135deg,#FF9800,#FFB74D);
+  box-shadow:0 6rpx 24rpx rgba(255,152,0,0.4);
+  transition:all 0.2s;
+}
+.slot-spin-btn.off { opacity:0.5; pointer-events:none; }
+.slot-spin-btn:active { transform:scale(0.96); }
+.slot-spin-t { font-size:32rpx; font-weight:700; color:#fff; }
+
+.slot-result { margin-top:24rpx; text-align:center; min-height:48rpx; }
+.slot-res-text { font-size:28rpx; color:#999; }
+.slot-res-text.win { color:#FF9800; font-weight:700; font-size:32rpx; }
 </style>
