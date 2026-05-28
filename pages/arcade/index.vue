@@ -359,6 +359,7 @@ function slotSpin() {
       name: 'coinChange',
       data: { coupleId: store.coupleId, amount: deficit, type: 'slot_bailout', description: '余额不足自动补贴' }
     })
+    uni.showToast({ title: `已补贴${deficit}币`, icon: 'none' })
   }
 
   store.addBalance(-slotBet.value)
@@ -622,7 +623,7 @@ function slotSettle(final: string[]) {
         </view>
 
         <!-- 转按钮 -->
-        <view class="slot-spin-btn" :class="{ off: slotSpinning || store.balance < slotBet }" @tap="slotSpin">
+        <view class="slot-spin-btn" :class="{ off: slotSpinning }" @tap="slotSpin">
           <text class="slot-spin-t">{{ slotSpinning ? '转动中...' : '🎰 转一下' }}</text>
         </view>
 
