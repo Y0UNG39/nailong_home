@@ -166,7 +166,7 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
       </view>
 
       <!-- 梦想进度 -->
-      <view class="dream-card">
+      <view class="dream-card" @tap="uni.switchTab({ url: '/pages/future/index' })">
         <view class="dream-header">
           <text class="dream-title">⭐ 梦想进度</text>
           <text class="dream-count">{{ dreamDone }}/{{ dreamTotal }} 已完成</text>
@@ -247,8 +247,9 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
   background: rgba(255,255,255,0.85); backdrop-filter: blur(16rpx);
   border-radius: 20rpx; padding: 24rpx;
   box-shadow: 0 4rpx 16rpx rgba(255,184,0,0.06);
-  border: 1rpx solid rgba(255,255,255,0.5);
+  border: 1rpx solid rgba(255,255,255,0.5); transition: transform 0.15s;
 }
+.dream-card:active { transform: scale(0.97); }
 .dream-header {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 16rpx;
