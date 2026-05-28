@@ -321,7 +321,7 @@ function rollDice() {
 }
 
 // ---- 老虎机 ----
-const SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🍉', '7️⃣']
+const SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🍉', '⭐']
 const SLOT_WEIGHTS = [30, 25, 20, 15, 10]
 const SLOT_TOTAL_WT = SLOT_WEIGHTS.reduce((a, b) => a + b, 0)
 const SLOT_PAYOUTS_3 = [3, 5, 10, 20, 50]
