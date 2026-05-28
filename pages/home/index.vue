@@ -163,6 +163,10 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
           <view class="qe-icon-wrap expense"><text class="qe-icon">💰</text></view>
           <text class="qe-label">记账</text>
         </view>
+        <view class="qe-item" @tap="goArcade('slot')">
+          <view class="qe-icon-wrap slot"><text class="qe-icon">🎰</text></view>
+          <text class="qe-label">老虎机</text>
+        </view>
       </view>
 
       <!-- 梦想进度 -->
@@ -238,6 +242,7 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
 .qe-icon-wrap.scratch { background: #E8F5E9; }
 .qe-icon-wrap.dice { background: #E3F2FD; }
 .qe-icon-wrap.expense { background: #FFF8E1; }
+.qe-icon-wrap.slot { background: #FBE9E7; }
 .qe-icon-wrap:active { transform: scale(0.92); }
 .qe-icon { font-size: 44rpx; }
 .qe-label { font-size: 24rpx; color: #666; font-weight: 600; }
