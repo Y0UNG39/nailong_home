@@ -34,6 +34,8 @@ async function onShopPurchase(item: any) {
   try {
     const res = await wx.cloud.callFunction({ name: 'shopPurchase', data: { coupleId: store.coupleId, itemId: item._id } })
     if (res.result.success) {
+      if (res.result.bailout) store.addBalance(res.result.bailout)
+      store.addBalance(-item.price)
       const msg = res.result.bailout ? `已补贴${res.result.bailout}币，购买成功` : '已购买「' + item.name + '」'
       uni.showToast({ title: msg, icon: 'success' })
       loadShopData()
