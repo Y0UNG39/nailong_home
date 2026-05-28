@@ -324,8 +324,8 @@ function rollDice() {
 const SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🍉', '⭐']
 const SLOT_WEIGHTS = [30, 25, 20, 15, 10]
 const SLOT_TOTAL_WT = SLOT_WEIGHTS.reduce((a, b) => a + b, 0)
-const SLOT_PAYOUTS_3 = [3, 5, 10, 20, 50]
-const SLOT_PAYOUT_2 = 1.5
+const SLOT_PAYOUTS_3 = [2, 3, 6, 12, 30]
+const SLOT_PAYOUT_2 = 1
 
 const slotBet = ref(10)
 const slotReels = ref(['🍒', '🍒', '🍒'] as string[])
