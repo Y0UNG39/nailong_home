@@ -353,8 +353,12 @@ function slotWeightedRandom(): string {
 function slotSpin() {
   if (slotSpinning.value) return
   if (store.balance < slotBet.value) {
-    uni.showToast({ title: '互动币不足', icon: 'none' })
-    return
+    store.addBalance(100)
+    wx.cloud.callFunction({
+      name: 'coinChange',
+      data: { coupleId: store.coupleId, amount: 100, type: 'slot_bailout', description: '余额不足自动补贴' }
+    })
+    uni.showToast({ title: '余额不足，已补贴100币', icon: 'none' })
   }
 
   store.addBalance(-slotBet.value)
@@ -432,7 +436,6 @@ function slotSettle(final: string[]) {
 
     <!-- 小卖部 -->
     <view class="tab-content" v-if="activeTab === 'shop'">
-      <view class="test-btn" @tap="setBalance999"><text>🔧 余额设为999</text></view>
       <view class="shop-grid">
         <view class="shop-col" v-for="item in shopItems" :key="item._id">
           <shop-item :item="item" showDelete @purchase="onShopPurchase" @delete="onShopDelete" @edit="onShopEdit" />
@@ -683,10 +686,6 @@ function slotSettle(final: string[]) {
 .sub-tab.active { background:#FFB800; color:#fff; font-weight:700; box-shadow:0 4rpx 12rpx rgba(255,184,0,0.25); }
 .tab-content { padding-bottom: 140rpx; }
 
-.test-btn {
-  background: rgba(255,255,255,0.6); border: 2rpx dashed #FFB800; border-radius: 16rpx;
-  padding: 16rpx 0; text-align: center; font-size: 24rpx; color: #FFB800; margin-bottom: 20rpx;
-}
 .shop-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .shop-col { width: calc(50% - 8rpx); box-sizing: border-box; }
 .fab { position:fixed; bottom:40rpx; right:40rpx; z-index:100; display:flex; align-items:center; background:linear-gradient(135deg,#FF9800,#FFB74D); padding:18rpx 32rpx; border-radius:48rpx; box-shadow:0 8rpx 24rpx rgba(255,152,0,0.35); font-size:26rpx; color:#fff; font-weight:600; }
