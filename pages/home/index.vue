@@ -143,29 +143,13 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
     <template v-else>
       <!-- 快捷入口 -->
       <view class="quick-entries">
-        <view class="qe-item" @tap="goArcade('shop')">
-          <view class="qe-icon-wrap shop"><text class="qe-icon">🛒</text></view>
-          <text class="qe-label">小卖部</text>
-        </view>
         <view class="qe-item" @tap="goArcade('wheel')">
           <view class="qe-icon-wrap wheel"><text class="qe-icon">🎡</text></view>
           <text class="qe-label">转盘</text>
         </view>
-        <view class="qe-item" @tap="goArcade('scratch')">
-          <view class="qe-icon-wrap scratch"><text class="qe-icon">🎫</text></view>
-          <text class="qe-label">刮刮卡</text>
-        </view>
-        <view class="qe-item" @tap="goArcade('dice')">
-          <view class="qe-icon-wrap dice"><text class="qe-icon">🎲</text></view>
-          <text class="qe-label">骰子</text>
-        </view>
         <view class="qe-item" @tap="goExpense">
           <view class="qe-icon-wrap expense"><text class="qe-icon">💰</text></view>
           <text class="qe-label">记账</text>
-        </view>
-        <view class="qe-item" @tap="goArcade('slot')">
-          <view class="qe-icon-wrap slot"><text class="qe-icon">🎰</text></view>
-          <text class="qe-label">老虎机</text>
         </view>
       </view>
 
