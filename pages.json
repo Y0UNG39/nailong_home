@@ -27,6 +27,14 @@
     {
       "path": "pages/expense/index",
       "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/shop/index",
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
+      "path": "pages/wheel/index",
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     }
   ],
   "globalStyle": {
