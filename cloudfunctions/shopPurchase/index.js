@@ -12,11 +12,12 @@ exports.main = async (event) => {
     const uRes = await db.collection('users').where({ _openid: OPENID }).get()
     if (uRes.data.length === 0) return { success: false, error: 'user not found' }
     let myCoins = uRes.data[0].coins || 0
+    let bailout = 0
     if (myCoins < i.data.price) {
-      const grant = i.data.price - myCoins
+      bailout = i.data.price - myCoins
       myCoins = i.data.price
       await db.collection('users').where({ _openid: OPENID }).update({ data: { coins: myCoins } })
-      await db.collection('coin_logs').add({ data: { coupleId, userId: OPENID, amount: grant, type: 'bailout', description: '余额不足自动补贴', operatorId: OPENID, balanceAfter: myCoins, createdAt: db.serverDate() } })
+      await db.collection('coin_logs').add({ data: { coupleId, userId: OPENID, amount: bailout, type: 'bailout', description: '余额不足自动补贴', operatorId: OPENID, balanceAfter: myCoins, createdAt: db.serverDate() } })
     }
 
     const nc = myCoins - i.data.price
@@ -26,6 +27,6 @@ exports.main = async (event) => {
     await db.collection('shop_items').doc(itemId).update({ data: { stock: ns, sold_out: ns <= 0 } })
     await db.collection('coin_logs').add({ data: { coupleId, userId: OPENID, amount: -i.data.price, type: 'shop', description: '购买: ' + i.data.name, operatorId: OPENID, balanceAfter: nc, createdAt: db.serverDate() } })
     await db.collection('coupons').add({ data: { coupleId, ownerId: OPENID, itemId, type: i.data.type, name: i.data.name, description: i.data.description, status: 'unused', createdAt: db.serverDate() } })
-    return { success: true }
+    return { success: true, bailout }
   } catch (e) { return { success: false, error: e.message } }
 }
