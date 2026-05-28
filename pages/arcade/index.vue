@@ -358,6 +358,10 @@ function slotSpin() {
   }
 
   store.addBalance(-slotBet.value)
+  wx.cloud.callFunction({
+    name: 'coinChange',
+    data: { coupleId: store.coupleId, amount: -slotBet.value, type: 'slot_bet', description: '老虎机投注' }
+  })
   slotSpinning.value = true
   slotShowResult.value = false
   slotResult.value = ''
@@ -400,7 +404,13 @@ function slotSettle(final: string[]) {
     msg = `😅 再来一次`
   }
 
-  if (win > 0) store.addBalance(win)
+  if (win > 0) {
+    store.addBalance(win)
+    wx.cloud.callFunction({
+      name: 'coinChange',
+      data: { coupleId: store.coupleId, amount: win, type: 'slot_win', description: `老虎机中奖 ${msg}` }
+    })
+  }
   slotWinAmount.value = win
   slotResult.value = msg
   slotShowResult.value = true
