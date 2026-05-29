@@ -101,6 +101,13 @@ function goArcade(tab: string) {
   }, 50)
 }
 
+function goRecord(tab: string) {
+  uni.setStorageSync('record_tab', tab)
+  setTimeout(() => {
+    uni.switchTab({ url: '/pages/record/index' })
+  }, 50)
+}
+
 function goExpense() {
   uni.navigateTo({ url: '/pages/expense/index' })
 }
@@ -158,7 +165,7 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
       </view>
 
       <!-- 梦想进度 -->
-      <view class="dream-card" @tap="uni.switchTab({ url: '/pages/future/index' })">
+      <view class="dream-card" @tap="goRecord('dream')">
         <view class="dream-header">
           <text class="dream-title">⭐ 梦想进度</text>
           <text class="dream-count">{{ dreamDone }}/{{ dreamTotal }} 已完成</text>

@@ -13,6 +13,10 @@
       "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
     {
+      "path": "pages/record/index",
+      "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
+    },
+    {
       "path": "pages/arcade/index",
       "style": { "navigationBarTitleText": "", "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#FFB800" }
     },
@@ -50,9 +54,8 @@
     "borderStyle": "white",
     "list": [
       { "pagePath": "pages/home/index", "text": "首页", "iconPath": "static/tabbar/home.png", "selectedIconPath": "static/tabbar/home-active.png" },
-      { "pagePath": "pages/calendar/index", "text": "日历", "iconPath": "static/tabbar/tasks.png", "selectedIconPath": "static/tabbar/tasks-active.png" },
+      { "pagePath": "pages/record/index", "text": "记录", "iconPath": "static/tabbar/record.png", "selectedIconPath": "static/tabbar/record-active.png" },
       { "pagePath": "pages/arcade/index", "text": "乐园", "iconPath": "static/tabbar/arcade.png", "selectedIconPath": "static/tabbar/arcade-active.png" },
-      { "pagePath": "pages/future/index", "text": "梦想", "iconPath": "static/tabbar/future.png", "selectedIconPath": "static/tabbar/future-active.png" },
       { "pagePath": "pages/profile/index", "text": "更多", "iconPath": "static/tabbar/more.png", "selectedIconPath": "static/tabbar/more-active.png" }
     ]
   },
