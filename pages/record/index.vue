@@ -148,10 +148,11 @@ async function saveEntry() {
       if (idx !== -1) {
         entries.value[idx] = { ...entries.value[idx], content, imageUrl }
       }
+      const eid = editingId.value
       closePopup()
       wx.cloud.callFunction({
         name: 'updateDiary',
-        data: { entryId: editingId.value, content, imageUrl }
+        data: { entryId: eid, content, imageUrl }
       }).catch(() => loadEntries())
     } else {
       const tempId = 'temp_' + Date.now()
