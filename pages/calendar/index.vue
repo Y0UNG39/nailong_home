@@ -296,7 +296,7 @@ onShow(() => loadEntries())
         <view v-for="entry in dayEntries" :key="entry._id" class="entry-card" @tap="openEdit(entry)" @longpress="deleteEntry(entry)">
           <view class="entry-top">
             <view class="entry-meta">
-              <text class="entry-author">{{ entry.authorNickname || (entry.authorId === store.openid ? '我' : 'TA') }}</text>
+              <text class="entry-author">{{ entry.authorId === store.openid ? '我' : 'TA' }}</text>
               <text class="entry-time">{{ entry.createdAt ? formatTime(entry.createdAt) : '' }}</text>
             </view>
             <view v-if="entry.authorId === store.openid" class="entry-del" @tap.stop="deleteEntry(entry)">
