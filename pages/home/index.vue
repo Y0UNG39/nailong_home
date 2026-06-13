@@ -53,7 +53,9 @@ async function loadData() {
     dreamDone.value = s.dreams || 0
     dreamTotal.value = s.dreamsTotal || 0
     hasLoaded.value = true
-  } catch {} finally {
+  } catch {
+    uni.showToast({ title: '加载失败，请下拉刷新', icon: 'none' })
+  } finally {
     loading.value = false
   }
 }
@@ -96,16 +98,12 @@ onPullDownRefresh(async () => {
 
 function goArcade(tab: string) {
   uni.setStorageSync('arcade_tab', tab)
-  setTimeout(() => {
-    uni.switchTab({ url: '/pages/arcade/index' })
-  }, 50)
+  setTimeout(() => uni.switchTab({ url: '/pages/arcade/index' }), 50)
 }
 
 function goRecord(tab: string) {
   uni.setStorageSync('record_tab', tab)
-  setTimeout(() => {
-    uni.switchTab({ url: '/pages/record/index' })
-  }, 50)
+  setTimeout(() => uni.switchTab({ url: '/pages/record/index' }), 50)
 }
 
 function goExpense() {
@@ -141,8 +139,7 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
     <!-- 互动币浮卡 -->
     <view class="coin-card">
       <text class="cc-label">互动币</text>
-      <text class="cc-label cc-right">余额</text>
-      <text class="cc-value">{{ store.balance }}🪙</text>
+      <text class="cc-value">{{ store.balance }} 🪙</text>
     </view>
 
     <loading-spinner v-if="loading" text="加载中..." />
@@ -179,15 +176,17 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 /* ---- 金色头部 ---- */
 .home-header {
-  background: linear-gradient(135deg, #FFB800, #FFCC00 50%, #FFD54F);
+  background: $gradient-header;
   border-radius: 28rpx; padding: 36rpx 30rpx 28rpx; margin-bottom: -20rpx;
   display: flex; flex-direction: column; align-items: center;
   box-shadow: 0 12rpx 36rpx rgba(255,184,0,0.25);
   position: relative; z-index: 1;
 }
-.avatars-row { display: flex; align-items: center; margin-bottom: 16rpx; }
+.avatars-row { display: flex; align-items: center; margin-bottom: $space-md; }
 .avatar-block { display: flex; flex-direction: column; align-items: center; }
 .avatar-circle {
   width: 96rpx; height: 96rpx; border-radius: 50%;
@@ -207,61 +206,51 @@ myAvatar.value = store.user?.avatar || uni.getStorageSync('my_avatar') || ''
 .heart-wrap { margin: 0 36rpx; }
 .heart-beat { font-size: 40rpx; animation: heartbeat 1.2s ease-in-out infinite; display: block; }
 @keyframes heartbeat { 0%,100%{transform:scale(1)} 25%{transform:scale(1.2)} 50%{transform:scale(1)} 75%{transform:scale(1.15)} }
-.couple-name { font-size: 34rpx; font-weight: 700; color: #fff; margin-bottom: 6rpx; letter-spacing: 2rpx; }
-.days-text { font-size: 24rpx; color: rgba(255,255,255,0.8); }
+.couple-name { font-size: 34rpx; font-weight: 700; color: $white; margin-bottom: 6rpx; letter-spacing: 2rpx; }
+.days-text { font-size: $text-sm; color: rgba(255,255,255,0.8); }
 
 /* ---- 互动币浮卡 ---- */
 .coin-card {
-  background: #fff; border-radius: 16rpx; padding: 22rpx 28rpx;
-  margin: 0 20rpx 20rpx; display: flex; align-items: center;
-  box-shadow: 0 6rpx 24rpx rgba(0,0,0,0.08); position: relative; z-index: 2;
+  @include glass-card;
+  padding: 22rpx 28rpx;
+  margin: 0 20rpx 20rpx; display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 2;
 }
-.cc-label { font-size: 26rpx; color: #999; margin-right: 8rpx; }
-.cc-right { margin-right: auto; margin-left: 0; }
-.cc-value { font-size: 36rpx; font-weight: 800; color: #FF9800; }
+.cc-label { font-size: $text-sm; color: $text-muted; }
+.cc-value { font-size: $text-lg; font-weight: 800; color: $accent; }
 
 /* ---- 快捷入口 ---- */
-.quick-entries {
-  display: flex; gap: 16rpx; margin-bottom: 24rpx;
-}
-.qe-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-}
+.quick-entries { display: flex; gap: $space-md; margin-bottom: $space-lg; }
+.qe-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
 .qe-icon-wrap {
-  width: 96rpx; height: 96rpx; border-radius: 24rpx;
+  width: 96rpx; height: 96rpx; border-radius: $radius-lg;
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 10rpx;
+  &:active { transform: scale(0.92); }
 }
 .qe-icon-wrap.shop { background: #FFF3E0; }
 .qe-icon-wrap.wheel { background: #FCE4EC; }
-.qe-icon-wrap.scratch { background: #E8F5E9; }
-.qe-icon-wrap.dice { background: #E3F2FD; }
 .qe-icon-wrap.expense { background: #FFF8E1; }
-.qe-icon-wrap.slot { background: #FBE9E7; }
-.qe-icon-wrap:active { transform: scale(0.92); }
 .qe-icon { font-size: 44rpx; }
-.qe-label { font-size: 24rpx; color: #666; font-weight: 600; }
+.qe-label { font-size: $text-sm; color: $text-secondary; font-weight: 600; }
 
 /* ---- 梦想进度 ---- */
 .dream-card {
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(16rpx);
-  border-radius: 20rpx; padding: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255,184,0,0.06);
-  border: 1rpx solid rgba(255,255,255,0.5); transition: transform 0.15s;
+  @include glass-card;
+  padding: $space-lg;
+  transition: transform 0.15s;
+  &:active { transform: scale(0.97); }
 }
-.dream-card:active { transform: scale(0.97); }
 .dream-header {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 16rpx;
+  margin-bottom: $space-md;
 }
-.dream-title { font-size: 28rpx; font-weight: 700; color: #333; }
-.dream-count { font-size: 24rpx; color: #bbb; }
-.dream-bar-bg {
-  background: #F5F5F5; border-radius: 8rpx; height: 12rpx; overflow: hidden;
-}
+.dream-title { font-size: 28rpx; font-weight: 700; color: $text; }
+.dream-count { font-size: $text-sm; color: $text-faint; }
+.dream-bar-bg { background: $border-light; border-radius: 8rpx; height: 12rpx; overflow: hidden; }
 .dream-bar-fill {
   height: 100%; border-radius: 8rpx;
-  background: linear-gradient(90deg, #FFB800, #FF5722);
+  background: linear-gradient(90deg, $primary, $error);
   transition: width 0.3s ease;
 }
 </style>

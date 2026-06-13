@@ -72,7 +72,9 @@ async function loadExpenses() {
       stats.value = res.result.stats || { total: 0, myTotal: 0, partnerTotal: 0 }
     }
     hasLoaded.value = true
-  } catch {} finally {
+  } catch {
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
     loading.value = false
   }
 }
@@ -102,6 +104,7 @@ async function saveExpense() {
   if (selectedPayer.value === 'me') stats.value.myTotal += num
   else stats.value.partnerTotal += num
 
+  const noteText = note.value.trim()
   amount.value = ''
   note.value = ''
 
@@ -113,7 +116,7 @@ async function saveExpense() {
         amount: num,
         category: selectedCategory.value,
         paidBy,
-        note: note.value.trim(),
+        note: noteText,
         date: today
       }
     })
@@ -136,7 +139,6 @@ const swipingId = ref('')
 const delWidth = 140
 
 function onTouchStart(e: any, id: string) {
-  // 关闭其他已滑开的
   for (const k in swipeStates.value) {
     if (swipeStates.value[k] < 0) swipeStates.value[k] = 0
   }
@@ -306,101 +308,95 @@ onShow(() => loadExpenses())
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 /* ---- 顶部统计 ---- */
 .stats-card {
-  background: linear-gradient(135deg, #FF9800, #FF5722);
-  border-radius: 20rpx; padding: 28rpx 24rpx; margin-bottom: 20rpx;
+  background: linear-gradient(135deg, $accent, #FF5722);
+  border-radius: $radius-lg; padding: 28rpx 24rpx; margin-bottom: $space-lg;
   text-align: center;
   box-shadow: 0 8rpx 28rpx rgba(255,87,34,0.2);
 }
-.stats-label { font-size: 24rpx; color: rgba(255,255,255,0.7); }
-.stats-total { font-size: 56rpx; font-weight: 800; color: #fff; display: block; margin: 8rpx 0 16rpx; }
-.stats-row { display: flex; justify-content: center; gap: 40rpx; }
-.stats-item { font-size: 24rpx; color: rgba(255,255,255,0.8); }
-.stats-item b { color: #fff; }
+.stats-label { font-size: $text-sm; color: rgba(255,255,255,0.7); }
+.stats-total { font-size: 56rpx; font-weight: 800; color: $white; display: block; margin: 8rpx 0 $space-md; }
 
 /* ---- 表单区域 ---- */
-.form-section { margin-bottom: 16rpx; }
-.form-label { font-size: 24rpx; color: #999; display: block; margin-bottom: 12rpx; }
+.form-section { margin-bottom: $space-md; }
+.form-label { font-size: $text-sm; color: $text-muted; display: block; margin-bottom: $space-sm; }
 
-.category-row { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.category-row { display: flex; flex-wrap: wrap; gap: $space-sm; }
 .cat-chip {
-  padding: 12rpx 20rpx; border-radius: 32rpx;
-  background: #F5F5F5; font-size: 24rpx; color: #888;
+  padding: $space-sm $space-lg; border-radius: 32rpx;
+  background: $border-light; font-size: $text-sm; color: $text-muted;
   border: 2rpx solid transparent;
+  &:active { transform: scale(0.95); }
 }
 .cat-chip.on {
-  background: #FFF3E0; color: #FF9800; border-color: #FF9800; font-weight: 600;
+  background: #FFF3E0; color: $accent; border-color: $accent; font-weight: 600;
 }
-.cat-chip:active { transform: scale(0.95); }
 
-.payer-row { display: flex; gap: 16rpx; }
+.payer-row { display: flex; gap: $space-md; }
 .payer-btn {
-  flex: 1; text-align: center; padding: 16rpx; border-radius: 16rpx;
-  background: #F5F5F5; font-size: 26rpx; color: #888;
+  flex: 1; text-align: center; padding: $space-md; border-radius: $radius-md;
+  background: $border-light; font-size: 26rpx; color: $text-muted;
   border: 2rpx solid transparent;
+  &:active { transform: scale(0.95); }
 }
 .payer-btn.on {
-  background: #FFF3E0; color: #FF9800; border-color: #FF9800; font-weight: 600;
+  background: #FFF3E0; color: $accent; border-color: $accent; font-weight: 600;
 }
-.payer-btn:active { transform: scale(0.95); }
 
 /* ---- 金额输入 ---- */
 .amount-input-wrap {
   display: flex; align-items: center;
-  background: #FAFAFA; border: 2rpx solid #F0F0F0; border-radius: 16rpx;
+  background: $surface; border: 2rpx solid $border; border-radius: $radius-md;
   padding: 20rpx 24rpx;
 }
-.amount-prefix { font-size: 36rpx; color: #999; margin-right: 12rpx; }
-.amount-input {
-  flex: 1; font-size: 48rpx; font-weight: 700; color: #333;
-}
+.amount-prefix { font-size: $text-lg; color: $text-muted; margin-right: $space-sm; }
+.amount-input { flex: 1; font-size: $text-xl; font-weight: 700; color: $text; }
 
 /* ---- 备注 ---- */
 .note-input {
-  background: #FAFAFA; border: 2rpx solid #F0F0F0; border-radius: 16rpx;
-  padding: 20rpx 24rpx; font-size: 26rpx; color: #333;
+  background: $surface; border: 2rpx solid $border; border-radius: $radius-md;
+  padding: 20rpx 24rpx; font-size: 26rpx; color: $text;
 }
 
 /* ---- 保存按钮 ---- */
 .save-btn {
-  background: linear-gradient(135deg, #FF9800, #FFB74D);
-  border-radius: 16rpx; padding: 24rpx; text-align: center;
-  font-size: 30rpx; font-weight: 700; color: #fff; margin: 20rpx 0;
-  box-shadow: 0 6rpx 20rpx rgba(255,152,0,0.3);
+  @include btn-primary;
+  padding: 24rpx; text-align: center; margin: $space-lg 0;
 }
-.save-btn:active { transform: scale(0.97); }
 .save-btn.off { opacity: 0.5; pointer-events: none; }
 
 /* ---- 记录列表 ---- */
-.record-list { margin-top: 8rpx; }
-.list-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
-.list-title { font-size: 26rpx; font-weight: 700; color: #666; }
-.clear-all-btn { font-size: 24rpx; color: #F44336; font-weight: 600; }
+.record-list { margin-top: $space-xs; }
+.list-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: $space-md; }
+.list-title { font-size: 26rpx; font-weight: 700; color: $text-secondary; }
+.clear-all-btn { font-size: $text-sm; color: $error; font-weight: 600; }
 .clear-all-btn:active { opacity: 0.6; }
-.empty-hint { text-align: center; padding: 48rpx 0; font-size: 26rpx; color: #ccc; }
+.empty-hint { text-align: center; padding: $space-xxl 0; font-size: 26rpx; color: $text-faint; }
 
-.record-wrap { position: relative; overflow: hidden; border-radius: 16rpx; margin-bottom: 12rpx; }
+.record-wrap { position: relative; overflow: hidden; border-radius: $radius-md; margin-bottom: $space-sm; }
 .record-card {
   display: flex; align-items: center; justify-content: space-between;
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(16rpx);
+  @include glass-card;
+  border-radius: $radius-md;
   padding: 20rpx 24rpx; position: relative; z-index: 1;
   transition: transform 0.2s ease;
-  border: 1rpx solid rgba(255,255,255,0.5);
 }
-.record-left { display: flex; align-items: center; gap: 16rpx; }
-.record-icon { font-size: 36rpx; }
+.record-left { display: flex; align-items: center; gap: $space-md; }
+.record-icon { font-size: $text-lg; }
 .record-info { display: flex; flex-direction: column; }
-.record-note { font-size: 28rpx; font-weight: 600; color: #333; }
-.record-meta { font-size: 22rpx; color: #bbb; margin-top: 4rpx; }
-.record-amount { font-size: 30rpx; font-weight: 700; color: #FF5722; flex-shrink: 0; }
+.record-note { font-size: 28rpx; font-weight: 600; color: $text; }
+.record-meta { font-size: $text-xs; color: $text-faint; margin-top: 4rpx; }
+.record-amount { font-size: $text-base; font-weight: 700; color: #FF5722; flex-shrink: 0; }
 
 .record-del {
   position: absolute; right: 0; top: 0; bottom: 0;
-  width: 140rpx; background: #F44336;
+  width: 140rpx; background: $error;
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity 0.2s;
 }
 .record-del.show { opacity: 1; }
-.del-text { color: #fff; font-size: 26rpx; font-weight: 700; }
+.del-text { color: $white; font-size: 26rpx; font-weight: 700; }
 </style>

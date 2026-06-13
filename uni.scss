@@ -1,27 +1,188 @@
-/* 全局主题变量 —— 粉色精致风 */
+/* ============================================
+   设计令牌 —— 奶龙的家
+   所有颜色、字体、间距、圆角、阴影统一管理
+   ============================================ */
+
+/* ---- 颜色 ---- */
 $primary: #FFB800;
-$primary-dark: #E85D72;
+$primary-hover: #E6A600;
 $primary-light: #FFD54F;
 $primary-bg: #FFF8E1;
-$bg-card: #ffffff;
-$bg-glass: rgba(255, 255, 255, 0.72);
-$text: #333333;
-$text-secondary: #999999;
-$text-muted: #BBBBBB;
-$radius: 24rpx;
-$radius-sm: 12rpx;
-$shadow-card: 0 8rpx 32rpx rgba(255, 184, 0, 0.08);
-$shadow-elevated: 0 12rpx 48rpx rgba(255, 184, 0, 0.14);
+$accent: #FF9800;
+$accent-light: #FFB74D;
 
-/* uni-app 全局 page 样式 */
+$text: #333333;
+$text-secondary: #666666;
+$text-muted: #999999;
+$text-faint: #BBBBBB;
+
+$border: #F0F0F0;
+$border-light: #F5F5F5;
+$surface: #FAFAFA;
+$white: #FFFFFF;
+
+$glass-bg: rgba(255, 255, 255, 0.85);
+$glass-border: rgba(255, 255, 255, 0.5);
+
+$error: #F44336;
+$success: #4CAF50;
+
+/* ---- 字体大小 ---- */
+$text-xs: 22rpx;    // 元信息、时间戳
+$text-sm: 26rpx;    // 标签、描述
+$text-base: 30rpx;  // 正文、按钮
+$text-lg: 36rpx;    // 标题、数值
+$text-xl: 48rpx;    // 展示文字、金额
+$text-xxl: 72rpx;   // 超大数字
+
+/* ---- 间距 ---- */
+$space-xs: 8rpx;
+$space-sm: 12rpx;
+$space-md: 16rpx;
+$space-lg: 24rpx;
+$space-xl: 32rpx;
+$space-xxl: 48rpx;
+
+/* ---- 圆角 ---- */
+$radius-sm: 12rpx;
+$radius-md: 16rpx;
+$radius-lg: 24rpx;
+$radius-xl: 32rpx;
+
+/* ---- 阴影 ---- */
+$shadow-card: 0 6rpx 28rpx rgba(255, 184, 0, 0.06);
+$shadow-elevated: 0 8rpx 24rpx rgba(255, 152, 0, 0.35);
+$shadow-button: 0 4rpx 16rpx rgba(255, 152, 0, 0.3);
+
+/* ---- 渐变 ---- */
+$gradient-primary: linear-gradient(135deg, #FFB800, #FFD54F);
+$gradient-accent: linear-gradient(135deg, #FF9800, #FFB74D);
+$gradient-header: linear-gradient(135deg, #FFB800, #FFCC00 50%, #FFD54F);
+$gradient-page: linear-gradient(180deg, #FFF8E1 0%, #FFFAEE 30%, #ffffff 100%);
+
+/* ---- Mixins ---- */
+
+// 玻璃拟态卡片
+@mixin glass-card {
+  background: $glass-bg;
+  backdrop-filter: blur(16rpx);
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  border: 1rpx solid $glass-border;
+}
+
+// 主按钮
+@mixin btn-primary {
+  background: $gradient-accent;
+  border-radius: 44rpx;
+  font-size: $text-base;
+  font-weight: 700;
+  color: $white;
+  box-shadow: $shadow-button;
+  &:active { transform: scale(0.96); }
+}
+
+// 子标签栏
+@mixin sub-tabs {
+  display: flex;
+  background: $glass-bg;
+  backdrop-filter: blur(12rpx);
+  border-radius: $radius-lg;
+  padding: $space-xs;
+  margin-bottom: $space-lg;
+  box-shadow: $shadow-card;
+}
+
+@mixin sub-tab-active {
+  background: $primary;
+  color: $white;
+  font-weight: 700;
+  box-shadow: 0 4rpx 12rpx rgba(255, 184, 0, 0.25);
+}
+
+// 弹窗遮罩
+@mixin modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4rpx);
+  z-index: 100;
+}
+
+// 弹窗底部面板
+@mixin modal-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: $white;
+  border-radius: $radius-xl $radius-xl 0 0;
+  max-height: 85vh;
+  z-index: 101;
+  animation: slideUp 0.3s ease-out;
+}
+
+// 表单输入框
+@mixin form-input {
+  width: 100%;
+  height: 80rpx;
+  border: 2rpx solid $border;
+  border-radius: $radius-md;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  background: $surface;
+  box-sizing: border-box;
+}
+
+// 段落选择器
+@mixin segment {
+  flex: 1;
+  min-width: 80rpx;
+  text-align: center;
+  font-size: $text-xs;
+  color: $text-muted;
+  padding: 14rpx 4rpx;
+  border: 2rpx solid $border;
+  border-radius: $radius-md;
+  background: $surface;
+}
+
+@mixin segment-active {
+  color: $accent;
+  border-color: $accent;
+  background: #FFF3E0;
+  font-weight: 700;
+}
+
+// 悬浮按钮
+@mixin fab {
+  position: fixed;
+  bottom: 40rpx;
+  right: 40rpx;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  background: $gradient-accent;
+  padding: 18rpx 32rpx;
+  border-radius: 48rpx;
+  box-shadow: $shadow-elevated;
+  font-size: 26rpx;
+  color: $white;
+  font-weight: 600;
+}
+
+/* ---- 全局样式 ---- */
 page {
-  background: linear-gradient(180deg, #FFF8E1 0%, #FFFAEE 30%, #ffffff 100%);
+  background: $gradient-page;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: $text;
   font-size: 28rpx;
-  --primary: $primary;
-  --primary-light: $primary-light;
-  --bg: $primary-bg;
-  --radius: $radius;
-  --radius-sm: $radius-sm;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -41,8 +41,8 @@ function onToggleComplete() { emit('complete', props.dream) }
       <view class="status-badge" :class="dream.status" @tap.stop="onToggleComplete">
         <text>{{ dream.status === 'completed' ? '✅' : '⭐' }}</text>
       </view>
-      <view class="del-btn" v-if="showDelete && dream.status !== 'completed'" @tap.stop="onEdit"><text>✎</text></view>
-      <view class="del-btn" :class="{ edit: showDelete && dream.status !== 'completed' }" v-if="showDelete" @tap.stop="onDelete"><text>✕</text></view>
+      <view class="action-btn" v-if="showDelete && dream.status !== 'completed'" @tap.stop="onEdit"><text>✎</text></view>
+      <view class="action-btn" :class="{ del: showDelete && dream.status !== 'completed' }" v-if="showDelete" @tap.stop="onDelete"><text>✕</text></view>
     </view>
     <view class="body">
       <view class="title-row">
@@ -64,48 +64,53 @@ function onToggleComplete() { emit('complete', props.dream) }
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 .card {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(16rpx);
-  border-radius: 24rpx;
+  @include glass-card;
   overflow: hidden;
-  box-shadow: 0 6rpx 28rpx rgba(255,184,0,0.06);
-  border: 1rpx solid rgba(255,255,255,0.5);
   transition: transform 0.2s;
   &:active { transform: scale(0.98); }
 }
 .card.completed { opacity: 0.65; }
 .card.completed .img-area { filter: grayscale(0.5); }
 .img-area {
-  height: 200rpx; background: linear-gradient(135deg, #FFF8E1, #FFE082);
-  display: flex; align-items: center; justify-content: center; position: relative;
+  height: 200rpx;
+  background: linear-gradient(135deg, $primary-bg, $primary-light);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
 }
 .img { width: 100%; height: 100%; }
 .img-placeholder { font-size: 72rpx; }
 .status-badge {
   position: absolute; top: 16rpx; right: 16rpx;
-  padding: 6rpx 14rpx; border-radius: 20rpx; font-size: 22rpx;
+  padding: 6rpx 14rpx; border-radius: 20rpx; font-size: $text-xs;
 }
 .status-badge.dreaming { background: rgba(255,215,0,0.25); }
 .status-badge.completed { background: rgba(76,175,80,0.25); }
-.del-btn {
+.action-btn {
   position: absolute; top: 10rpx; left: 10rpx;
-  width: 40rpx; height: 40rpx; border-radius: 50%;
-  background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;
-  font-size: 22rpx; color: #fff;
+  width: 56rpx; height: 56rpx; border-radius: 50%;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24rpx; color: $white;
 }
-.del-btn.edit { left: 58rpx; background: rgba(33,150,243,0.7); }
+.action-btn.del { left: 72rpx; background: rgba(33,150,243,0.7); }
 .body { padding: 18rpx 20rpx; }
 .title-row { display: flex; align-items: center; margin-bottom: 12rpx; }
-.title { font-size: 28rpx; font-weight: 700; color: #333; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.title {
+  font-size: 28rpx; font-weight: 700; color: $text; flex: 1;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
 .mutual-badge {
   padding: 4rpx 14rpx; border-radius: 16rpx;
-  background: linear-gradient(135deg, #FFB800, #FFCC00);
-  font-size: 20rpx; color: #fff; font-weight: 600; flex-shrink: 0; margin-left: 8rpx;
+  background: $gradient-primary;
+  font-size: $text-xs; color: $white; font-weight: 600;
+  flex-shrink: 0; margin-left: 8rpx;
 }
 .bottom-row { display: flex; align-items: center; justify-content: space-between; }
-.cat-tag { padding: 4rpx 14rpx; border-radius: 12rpx; font-size: 22rpx; font-weight: 600; }
+.cat-tag { padding: 4rpx 14rpx; border-radius: 12rpx; font-size: $text-xs; font-weight: 600; }
 .like-btn { display: flex; align-items: center; gap: 4rpx; }
-.like-count { font-size: 22rpx; color: #bbb; }
-.dream-time { font-size: 20rpx; color: #ccc; margin-top: 8rpx; display: block; }
+.like-count { font-size: $text-xs; color: $text-faint; }
+.dream-time { font-size: $text-xs; color: $text-faint; margin-top: 8rpx; display: block; }
 </style>

@@ -287,69 +287,101 @@ watch(couponTab, updateCoupons)
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 .sub-banner {
-  background: linear-gradient(135deg, #FF8F00, #FFB300); border-radius: 20rpx;
-  padding: 20rpx 24rpx; margin-bottom: 16rpx; display: flex; align-items: center;
+  background: linear-gradient(135deg, #FF8F00, #FFB300); border-radius: $radius-lg;
+  padding: $space-lg 24rpx; margin-bottom: $space-md; display: flex; align-items: center;
   box-shadow: 0 6rpx 20rpx rgba(255,143,0,0.25);
 }
-.sb-icon { font-size: 34rpx; margin-right: 12rpx; }
-.sb-text { flex: 1; font-size: 24rpx; color: #fff; }
+.sb-icon { font-size: 34rpx; margin-right: $space-sm; }
+.sb-text { flex: 1; font-size: $text-sm; color: $white; }
 .sb-btn {
   background: rgba(255,255,255,0.25); border-radius: 50%; width: 44rpx; height: 44rpx;
   display: flex; align-items: center; justify-content: center;
-  font-size: 24rpx; color: #fff; font-weight: 700; flex-shrink: 0;
+  font-size: $text-sm; color: $white; font-weight: 700; flex-shrink: 0;
 }
 
 .menu-card {
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(16rpx);
-  border-radius: 20rpx; padding: 26rpx 28rpx; margin-bottom: 14rpx;
+  @include glass-card;
+  padding: 26rpx 28rpx; margin-bottom: 14rpx;
   display: flex; align-items: center; justify-content: space-between;
-  box-shadow: 0 4rpx 16rpx rgba(255,184,0,0.04);
-  border: 1rpx solid rgba(255,255,255,0.5); transition: transform 0.15s;
+  transition: transform 0.15s;
+  &:active { transform: scale(0.98); }
 }
-.menu-card:active { transform: scale(0.98); }
 .m-left { display: flex; align-items: center; }
 .m-icon { font-size: 32rpx; margin-right: 14rpx; }
-.m-title { font-size: 28rpx; font-weight: 600; color: #333; }
+.m-title { font-size: 28rpx; font-weight: 600; color: $text; }
 .m-right { display: flex; align-items: center; }
-.m-badge { font-size: 22rpx; color: #FFB800; background: rgba(255,184,0,0.08); border-radius: 16rpx; padding: 4rpx 14rpx; margin-right: 8rpx; }
-.m-arrow { font-size: 36rpx; color: #ddd; }
+.m-badge { font-size: $text-xs; color: $primary; background: rgba(255,184,0,0.08); border-radius: $radius-md; padding: 4rpx 14rpx; margin-right: 8rpx; }
+.m-arrow { font-size: $text-lg; color: $border; }
 
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4rpx); z-index: 1000; display: flex; align-items: flex-end; }
-.panel { width: 100%; max-height: 85vh; background: #fff; border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.3s ease-out; }
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 30rpx; border-bottom: 1rpx solid #FFF8E1; }
-.panel-title { font-size: 32rpx; font-weight: 700; color: #333; }
-.close-btn { width: 44rpx; height: 44rpx; border-radius: 50%; background: #FFF8E1; display: flex; align-items: center; justify-content: center; font-size: 26rpx; color: #FFB800; }
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4rpx);
+  z-index: 1000; display: flex; align-items: flex-end;
+}
+.panel {
+  width: 100%; max-height: 85vh; background: $white;
+  border-radius: $radius-xl $radius-xl 0 0;
+  display: flex; flex-direction: column; overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 28rpx 30rpx; border-bottom: 1rpx solid $primary-bg;
+}
+.panel-title { font-size: 32rpx; font-weight: 700; color: $text; }
+.close-btn {
+  width: 44rpx; height: 44rpx; border-radius: 50%; background: $primary-bg;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26rpx; color: $primary;
+}
 
-.coupon-tabs { display: flex; border-bottom: 1rpx solid #FFF8E1; }
-.ctab { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: #999; }
-.ctab.active { color: #FFB800; font-weight: 700; position: relative; }
-.ctab.active::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: #FFB800; border-radius: 2rpx; }
-.coupon-list { flex: 1; padding: 16rpx 24rpx; max-height: 50vh; }
-.c-card { display: flex; align-items: center; padding: 22rpx 18rpx; border-radius: 14rpx; border-left: 6rpx solid #FFB800; background: #FFFDE7; position: relative; z-index: 1; transition: transform 0.2s ease; }
-.c-card.used { border-left-color: #ccc; background: #F7F7F7; }
-.c-card.expired { border-left-color: #ddd; background: #F5F5F5; }
+.coupon-tabs { display: flex; border-bottom: 1rpx solid $primary-bg; }
+.ctab { flex: 1; text-align: center; padding: $space-lg 0; font-size: 26rpx; color: $text-muted; }
+.ctab.active { color: $primary; font-weight: 700; position: relative; }
+.ctab.active::after {
+  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 40rpx; height: 4rpx; background: $primary; border-radius: 2rpx;
+}
+.coupon-list { flex: 1; padding: $space-md 24rpx; max-height: 50vh; }
+.c-card {
+  display: flex; align-items: center; padding: 22rpx 18rpx; border-radius: 14rpx;
+  border-left: 6rpx solid $primary; background: #FFFDE7;
+  position: relative; z-index: 1; transition: transform 0.2s ease;
+}
+.c-card.used { border-left-color: $text-faint; background: #F7F7F7; }
+.c-card.expired { border-left-color: $border; background: $border-light; }
 .c-left { margin-right: 14rpx; }
-.c-icon { font-size: 36rpx; }
+.c-icon { font-size: $text-lg; }
 .c-info { flex: 1; }
-.c-name { font-size: 26rpx; font-weight: 600; color: #333; display: block; }
-.c-date { font-size: 22rpx; color: #bbb; margin-top: 4rpx; }
-.use-btn { padding: 10rpx 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #FFB800, #FFCC00); font-size: 22rpx; font-weight: 700; color: #fff; flex-shrink: 0; }
+.c-name { font-size: 26rpx; font-weight: 600; color: $text; display: block; }
+.c-date { font-size: $text-xs; color: $text-faint; margin-top: 4rpx; }
+.use-btn {
+  padding: 10rpx 24rpx; border-radius: $space-lg;
+  background: $gradient-primary; font-size: $text-xs; font-weight: 700; color: $white; flex-shrink: 0;
+}
 
 .coupon-card-wrap { position: relative; overflow: hidden; border-radius: 14rpx; margin-bottom: 14rpx; }
-.coupon-del-btn { position: absolute; right: 0; top: 0; bottom: 0; width: 140rpx; border-radius: 0 14rpx 14rpx 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
-.coupon-del-btn.show { background: #F44336; opacity: 1; }
-.coupon-del-btn .del-text { color: #fff; font-size: 26rpx; font-weight: 700; }
+.coupon-del-btn {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 140rpx;
+  border-radius: 0 14rpx 14rpx 0;
+  display: flex; align-items: center; justify-content: center; opacity: 0;
+}
+.coupon-del-btn.show { background: $error; opacity: 1; }
+.coupon-del-btn .del-text { color: $white; font-size: 26rpx; font-weight: 700; }
 
-.settings-body { padding: 24rpx 28rpx; }
-.set-row { padding: 20rpx 0; border-bottom: 1rpx solid #F5F5F5; }
-.set-label { font-size: 28rpx; font-weight: 600; color: #333; display: block; margin-bottom: 14rpx; }
-.set-val { font-size: 26rpx; color: #FFB800; }
-.invite-code { font-size: 32rpx; font-weight: 800; color: #FFB800; letter-spacing: 4rpx; }
-.invite-code.dim { color: #bbb; font-weight: 400; letter-spacing: 0; }
-.set-input { font-size: 26rpx; border: 2rpx solid #FFD54F; border-radius: 12rpx; padding: 12rpx 16rpx; }
-.gender-btns { display: flex; gap: 16rpx; }
-.g-btn { flex: 1; text-align: center; padding: 16rpx; border-radius: 16rpx; font-size: 26rpx; color: #999; border: 2rpx solid #F0F0F0; background: #FAFAFA; }
-.g-btn.sel { color: #FF9800; border-color: #FF9800; background: #FFF3E0; font-weight: 700; }
+.settings-body { padding: $space-lg 28rpx; }
+.set-row { padding: $space-lg 0; border-bottom: 1rpx solid $border-light; }
+.set-label { font-size: 28rpx; font-weight: 600; color: $text; display: block; margin-bottom: 14rpx; }
+.set-val { font-size: 26rpx; color: $primary; }
+.invite-code { font-size: 32rpx; font-weight: 800; color: $primary; letter-spacing: 4rpx; }
+.invite-code.dim { color: $text-faint; font-weight: 400; letter-spacing: 0; }
+.set-input { font-size: 26rpx; border: 2rpx solid $primary-light; border-radius: $radius-sm; padding: $space-sm $space-md; }
+.gender-btns { display: flex; gap: $space-md; }
+.g-btn {
+  flex: 1; text-align: center; padding: $space-md; border-radius: $radius-md;
+  font-size: 26rpx; color: $text-muted; border: 2rpx solid $border; background: $surface;
+}
+.g-btn.sel { color: $accent; border-color: $accent; background: #FFF3E0; font-weight: 700; }
 </style>

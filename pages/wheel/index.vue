@@ -210,42 +210,42 @@ onMounted(() => loadWheelItems())
 </template>
 
 <style lang="scss" scoped>
-.wh-top { display:flex; align-items:center; justify-content:space-between; padding-bottom:12rpx; }
-.wh-hint { font-size:22rpx; color:#bbb; }
-.wh-clear { font-size:22rpx; color:#F44336; padding:4rpx 12rpx; border-radius:12rpx; background:rgba(244,67,54,0.08); }
+@import '@/uni.scss';
+
+.wh-top { display: flex; align-items: center; justify-content: space-between; padding-bottom: $space-sm; }
+.wh-hint { font-size: $text-xs; color: $text-faint; }
+.wh-clear { font-size: $text-xs; color: $error; padding: 4rpx $space-sm; border-radius: $radius-sm; background: rgba(244,67,54,0.08); }
 
 .wh-stage {
-  position:relative; display:flex; flex-direction:column; align-items:center;
-  width:600rpx; margin:0 auto 16rpx;
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  width: 600rpx; margin: 0 auto $space-md;
 }
-.wh-wheel { position:relative; width:600rpx; height:600rpx; }
-.pie-canvas { width:600rpx; height:600rpx; }
-.wh-btn { text-align:center; margin-top:20rpx; width:100%; }
-.wh-btn.off { opacity:0.5; pointer-events:none; }
+.wh-wheel { position: relative; width: 600rpx; height: 600rpx; }
+.pie-canvas { width: 600rpx; height: 600rpx; }
+.wh-btn { text-align: center; margin-top: $space-lg; width: 100%; }
+.wh-btn.off { opacity: 0.5; pointer-events: none; }
 .wh-btn-t {
-  display:inline-block;
-  background:linear-gradient(135deg,#FF9800,#FFB74D);
-  border-radius:44rpx; padding:16rpx 64rpx;
-  font-size:30rpx; color:#fff; font-weight:700;
-  box-shadow:0 4rpx 20rpx rgba(255,152,0,0.4);
+  display: inline-block;
+  @include btn-primary;
+  padding: $space-md 64rpx;
 }
 
-.wh-result { text-align:center; height:56rpx; display:flex; align-items:center; justify-content:center; }
-.whr-text { font-size:28rpx; color:#FF9800; }
-.whr-label { font-size:34rpx; font-weight:800; color:#F44336; }
+.wh-result { text-align: center; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.whr-text { font-size: 28rpx; color: $accent; }
+.whr-label { font-size: 34rpx; font-weight: 800; color: $error; }
 
-.wh-mgmt { margin-top:12rpx; }
-.wh-add { display:flex; gap:8rpx; margin-bottom:16rpx; }
-.wha-inp { flex:2; height:72rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 16rpx; font-size:26rpx; background:#FAFAFA; }
-.wha-wt { width:90rpx; height:72rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 8rpx; font-size:26rpx; text-align:center; background:#FAFAFA; flex-shrink:0; }
-.wha-btn { height:72rpx; line-height:72rpx; padding:0 24rpx; background:linear-gradient(135deg,#FF9800,#FFB74D); border-radius:16rpx; flex-shrink:0; }
-.wha-btn-t { font-size:26rpx; color:#fff; font-weight:600; }
-.wh-list { display:flex; flex-wrap:wrap; gap:12rpx; }
-.wh-chip { display:flex; align-items:center; gap:8rpx; background:#F5F5F5; border-radius:20rpx; padding:10rpx 14rpx; }
-.whc-dot { width:14rpx; height:14rpx; border-radius:50%; flex-shrink:0; }
-.whc-label { font-size:24rpx; color:#333; }
-.whc-wt { font-size:20rpx; color:#999; padding:4rpx 8rpx; background:rgba(0,0,0,0.04); border-radius:8rpx; }
-.whc-edt { width:64rpx; height:40rpx; border:1rpx solid #FFB800; border-radius:8rpx; font-size:20rpx; text-align:center; }
-.whc-ok { font-size:22rpx; color:#4CAF50; padding:4rpx; font-weight:700; }
-.whc-del { font-size:24rpx; color:#bbb; padding:4rpx; }
+.wh-mgmt { margin-top: $space-sm; }
+.wh-add { display: flex; gap: 8rpx; margin-bottom: $space-md; }
+.wha-inp { flex: 2; height: 72rpx; border: 2rpx solid $border; border-radius: $radius-md; padding: 0 $space-md; font-size: 26rpx; background: $surface; }
+.wha-wt { width: 90rpx; height: 72rpx; border: 2rpx solid $border; border-radius: $radius-md; padding: 0 8rpx; font-size: 26rpx; text-align: center; background: $surface; flex-shrink: 0; }
+.wha-btn { height: 72rpx; line-height: 72rpx; padding: 0 $space-lg; @include btn-primary; border-radius: $radius-md; flex-shrink: 0; }
+.wha-btn-t { font-size: 26rpx; color: $white; font-weight: 600; }
+.wh-list { display: flex; flex-wrap: wrap; gap: $space-sm; }
+.wh-chip { display: flex; align-items: center; gap: 8rpx; background: $border-light; border-radius: $space-lg; padding: 10rpx 14rpx; }
+.whc-dot { width: 14rpx; height: 14rpx; border-radius: 50%; flex-shrink: 0; }
+.whc-label { font-size: $text-sm; color: $text; }
+.whc-wt { font-size: 20rpx; color: $text-muted; padding: 4rpx 8rpx; background: rgba(0,0,0,0.04); border-radius: 8rpx; }
+.whc-edt { width: 64rpx; height: 40rpx; border: 1rpx solid $primary; border-radius: 8rpx; font-size: 20rpx; text-align: center; }
+.whc-ok { font-size: $text-xs; color: $success; padding: 4rpx; font-weight: 700; }
+.whc-del { font-size: $text-sm; color: $text-faint; padding: 4rpx; }
 </style>

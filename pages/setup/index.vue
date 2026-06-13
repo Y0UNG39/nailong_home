@@ -88,15 +88,15 @@ async function doJoin() {
         <text class="code-label">邀请码</text>
         <text class="code-value">{{ createdCode }}</text>
         <text class="code-hint">把这个邀请码发给 TA，TA 输入后就能加入你的家啦</text>
-        <button class="go-btn" @click="() => uni.switchTab({ url: '/pages/home/index' })">进入家 →</button>
+        <button class="go-btn" @tap="() => uni.switchTab({ url: '/pages/home/index' })">进入家 →</button>
       </view>
       <template v-else>
-        <view class="btn create-btn" @click="mode = 'create'">
+        <view class="btn create-btn" @tap="mode = 'create'">
           <text class="btn-icon">🏡</text>
           <text class="btn-title">创建我们的家</text>
           <text class="btn-desc">邀请你的 TA 加入</text>
         </view>
-        <view class="btn join-btn" @click="mode = 'join'">
+        <view class="btn join-btn" @tap="mode = 'join'">
           <text class="btn-icon">🔑</text>
           <text class="btn-title">加入 TA 的家</text>
           <text class="btn-desc">输入邀请码加入</text>
@@ -110,8 +110,8 @@ async function doJoin() {
         <text class="form-label">给你们家起个名字</text>
         <input class="form-input" v-model="coupleName" placeholder="例如：我们的小窝" maxlength="20" />
         <view class="form-btns">
-          <button class="back-btn" @click="mode = 'choose'">返回</button>
-          <button class="submit-btn" @click="doCreate" :loading="loading">创建</button>
+          <button class="back-btn" @tap="mode = 'choose'">返回</button>
+          <button class="submit-btn" @tap="doCreate" :loading="loading">创建</button>
         </view>
       </view>
     </template>
@@ -122,8 +122,8 @@ async function doJoin() {
         <text class="form-label">输入 TA 给你的邀请码</text>
         <input class="form-input code-input" v-model="inviteCode" type="number" placeholder="6位数字" maxlength="6" />
         <view class="form-btns">
-          <button class="back-btn" @click="mode = 'choose'">返回</button>
-          <button class="submit-btn" @click="doJoin" :loading="loading">加入</button>
+          <button class="back-btn" @tap="mode = 'choose'">返回</button>
+          <button class="submit-btn" @tap="doJoin" :loading="loading">加入</button>
         </view>
       </view>
     </template>
@@ -131,73 +131,70 @@ async function doJoin() {
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 .setup-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #FFF8E1 0%, #FFFAEE 30%, #ffffff 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  background: $gradient-page;
+  display: flex; flex-direction: column; align-items: center;
   padding: 120rpx 48rpx 60rpx;
 }
 .logo-area { display: flex; flex-direction: column; align-items: center; margin-bottom: 64rpx; }
 .logo-icon { font-size: 100rpx; }
-.logo-title { font-size: 44rpx; font-weight: 800; color: #333; margin-top: 16rpx; }
-.logo-sub { font-size: 26rpx; color: #bbb; margin-top: 8rpx; }
+.logo-title { font-size: 44rpx; font-weight: 800; color: $text; margin-top: $space-md; }
+.logo-sub { font-size: 26rpx; color: $text-faint; margin-top: $space-xs; }
 
 .btn {
   width: 100%; max-width: 560rpx; padding: 32rpx 36rpx;
-  border-radius: 24rpx; margin-bottom: 24rpx;
+  border-radius: $radius-lg; margin-bottom: $space-lg;
   box-shadow: 0 8rpx 28rpx rgba(0,0,0,0.06);
   display: flex; flex-direction: column;
 }
-.create-btn { background: linear-gradient(135deg, #FFB800, #FFD54F); }
-.join-btn { background: #fff; border: 2rpx solid #FFB800; }
+.create-btn { background: $gradient-primary; }
+.join-btn { background: $white; border: 2rpx solid $primary; }
 .btn-icon { font-size: 48rpx; }
-.btn-title { font-size: 32rpx; font-weight: 700; margin-top: 8rpx; }
-.create-btn .btn-title { color: #fff; }
-.join-btn .btn-title { color: #FFB800; }
-.btn-desc { font-size: 24rpx; color: rgba(255,255,255,0.8); margin-top: 4rpx; }
-.join-btn .btn-desc { color: #bbb; }
+.btn-title { font-size: 32rpx; font-weight: 700; margin-top: $space-xs; }
+.create-btn .btn-title { color: $white; }
+.join-btn .btn-title { color: $primary; }
+.btn-desc { font-size: $text-sm; color: rgba(255,255,255,0.8); margin-top: 4rpx; }
+.join-btn .btn-desc { color: $text-faint; }
 
 .code-card {
-  background: #fff; border-radius: 24rpx; padding: 48rpx 40rpx;
+  background: $white; border-radius: $radius-lg; padding: $space-xxl 40rpx;
   box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.06);
   display: flex; flex-direction: column; align-items: center;
   max-width: 560rpx; width: 100%;
 }
-.code-label { font-size: 28rpx; color: #999; }
+.code-label { font-size: 28rpx; color: $text-muted; }
 .code-value {
-  font-size: 72rpx; font-weight: 900; color: #FFB800; letter-spacing: 16rpx;
-  margin: 16rpx 0; padding: 16rpx 40rpx; background: #FFF8E1; border-radius: 16rpx;
-  border: 2rpx dashed #FFB800;
+  font-size: $text-xxl; font-weight: 900; color: $primary; letter-spacing: $space-md;
+  margin: $space-md 0; padding: $space-md 40rpx; background: $primary-bg; border-radius: $radius-md;
+  border: 2rpx dashed $primary;
 }
-.code-hint { font-size: 24rpx; color: #bbb; text-align: center; line-height: 1.6; margin-bottom: 32rpx; }
+.code-hint { font-size: $text-sm; color: $text-faint; text-align: center; line-height: 1.6; margin-bottom: 32rpx; }
 .go-btn {
-  width: 100%; padding: 20rpx 0; text-align: center;
-  background: linear-gradient(135deg, #FFB800, #FFD54F);
-  border-radius: 44rpx; font-size: 30rpx; font-weight: 700; color: #fff;
-  box-shadow: 0 6rpx 20rpx rgba(255,184,0,0.3);
+  @include btn-primary;
+  width: 100%; padding: $space-lg 0; text-align: center;
 }
 
 .form-card {
-  background: #fff; border-radius: 24rpx; padding: 40rpx 36rpx;
+  background: $white; border-radius: $radius-lg; padding: 40rpx 36rpx;
   box-shadow: 0 8rpx 28rpx rgba(0,0,0,0.05); max-width: 560rpx; width: 100%;
 }
-.form-label { font-size: 30rpx; font-weight: 600; color: #333; margin-bottom: 20rpx; display: block; }
+.form-label { font-size: $text-base; font-weight: 600; color: $text; margin-bottom: $space-lg; display: block; }
 .form-input {
-  width: 100%; height: 88rpx; border: 2rpx solid #EEE; border-radius: 16rpx;
-  padding: 0 20rpx; font-size: 30rpx; box-sizing: border-box; text-align: center;
+  @include form-input;
+  height: 88rpx; text-align: center;
 }
-.form-input:focus { border-color: #FFB800; }
-.code-input { font-size: 44rpx; letter-spacing: 20rpx; }
-.form-btns { display: flex; gap: 20rpx; margin-top: 32rpx; }
+.form-input:focus { border-color: $primary; }
+.code-input { font-size: 44rpx; letter-spacing: $space-lg; }
+.form-btns { display: flex; gap: $space-lg; margin-top: 32rpx; }
 .back-btn {
-  flex: 1; padding: 20rpx 0; text-align: center; background: #F5F5F5;
-  border-radius: 44rpx; font-size: 28rpx; color: #666;
+  flex: 1; padding: $space-lg 0; text-align: center; background: $border-light;
+  border-radius: 44rpx; font-size: 28rpx; color: $text-secondary;
 }
 .submit-btn {
-  flex: 2; padding: 20rpx 0; text-align: center;
-  background: linear-gradient(135deg, #FFB800, #FFD54F);
-  border-radius: 44rpx; font-size: 28rpx; font-weight: 700; color: #fff;
+  flex: 2; padding: $space-lg 0; text-align: center;
+  @include btn-primary;
 }
 </style>
