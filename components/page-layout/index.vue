@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// 通用页面布局组件 —— 提供统一的 padding 和背景
 interface Props {
   padBottom?: boolean
 }
@@ -13,11 +12,14 @@ withDefaults(defineProps<Props>(), { padBottom: true })
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 .layout {
-  padding: 24rpx 28rpx;
+  padding: $space-lg 28rpx;
+  padding-top: calc(#{$space-lg} + env(safe-area-inset-top));
   min-height: 100vh;
 }
 .pad-bottom {
-  padding-bottom: 80rpx;
+  padding-bottom: calc(80rpx + env(safe-area-inset-bottom));
 }
 </style>

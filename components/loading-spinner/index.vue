@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   text?: string
   size?: 'sm' | 'md' | 'lg'
@@ -24,37 +26,25 @@ const wh = computed(() => sizeMap[props.size] + 'rpx')
 </template>
 
 <style lang="scss" scoped>
+@import '@/uni.scss';
+
 .spinner-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48rpx;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: $space-xxl;
 }
-.spinner {
-  position: relative;
-}
+.spinner { position: relative; }
 .ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
+  position: absolute; inset: 0; border-radius: 50%;
   border: 5rpx solid rgba(255, 184, 0, 0.12);
-  border-top-color: #FFB800;
+  border-top-color: $primary;
   animation: spin 0.8s linear infinite;
 }
 .ring2 {
-  inset: 10rpx;
-  border-width: 4rpx;
-  border-top-color: #FFD54F;
-  animation-duration: 1.2s;
-  animation-direction: reverse;
+  inset: 10rpx; border-width: 4rpx;
+  border-top-color: $primary-light;
+  animation-duration: 1.2s; animation-direction: reverse;
 }
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-.text {
-  margin-top: 24rpx;
-  font-size: 26rpx;
-  color: #999;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
+.text { margin-top: $space-lg; font-size: 26rpx; color: $text-muted; }
 </style>

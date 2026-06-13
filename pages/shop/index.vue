@@ -133,29 +133,36 @@ onShow(() => loadShopData())
 </template>
 
 <style lang="scss" scoped>
-.shop-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.shop-col { width: calc(50% - 8rpx); box-sizing: border-box; }
-.fab { position:fixed; bottom:40rpx; right:40rpx; z-index:100; display:flex; align-items:center; background:linear-gradient(135deg,#FF9800,#FFB74D); padding:18rpx 32rpx; border-radius:48rpx; box-shadow:0 8rpx 24rpx rgba(255,152,0,0.35); font-size:26rpx; color:#fff; font-weight:600; }
-.fab-icon { font-size:36rpx; margin-right:6rpx; }
+@import '@/uni.scss';
 
-.modal-mask { position:fixed; inset:0; background:rgba(0,0,0,0.4); backdrop-filter:blur(4rpx); z-index:200; }
-.modal-sheet { position:fixed; left:0; right:0; bottom:0; z-index:201; background:#fff; border-radius:32rpx 32rpx 0 0; display:flex; flex-direction:column; animation:slideUp 0.3s ease-out; }
-@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
-.modal-header { display:flex; align-items:center; justify-content:space-between; padding:32rpx 32rpx 20rpx; border-bottom:1rpx solid #F0F0F0; }
-.modal-title { font-size:34rpx; font-weight:700; color:#333; }
-.modal-close { font-size:36rpx; color:#bbb; padding:8rpx; }
-.modal-body { padding:24rpx 32rpx; max-height:55vh; }
-.form-group { margin-bottom:24rpx; }
-.form-label { font-size:28rpx; font-weight:600; color:#333; margin-bottom:12rpx; display:block; }
-.required { color:#FFB800; }
-.form-input { width:100%; height:80rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:0 20rpx; font-size:28rpx; background:#FAFAFA; box-sizing:border-box; }
-.form-textarea { width:100%; min-height:100rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; padding:16rpx 20rpx; font-size:26rpx; background:#FAFAFA; box-sizing:border-box; }
-.form-row { display:flex; gap:20rpx; }
-.form-group.half { flex:1; }
-.seg-group { display:flex; gap:8rpx; flex-wrap: wrap; }
-.seg { flex:1; min-width: 80rpx; text-align:center; font-size:22rpx; color:#999; padding:14rpx 4rpx; border:2rpx solid #F0F0F0; border-radius:16rpx; background:#FAFAFA; }
-.seg.sel { color:#FF9800; border-color:#FF9800; background:#FFF3E0; font-weight:700; }
-.modal-footer { padding:16rpx 32rpx 32rpx; padding-bottom:calc(32rpx + env(safe-area-inset-bottom)); border-top:1rpx solid #F0F0F0; }
-.submit-btn { width:100%; height:88rpx; line-height:88rpx; text-align:center; background:linear-gradient(135deg,#FF9800,#FFB74D); border-radius:44rpx; font-size:32rpx; font-weight:700; color:#fff; }
-.submit-btn.disabled { opacity:0.5; pointer-events:none; }
+.shop-grid { display: flex; flex-wrap: wrap; gap: $space-md; }
+.shop-col { width: calc(50% - 8rpx); box-sizing: border-box; }
+.fab { @include fab; }
+.fab-icon { font-size: $text-lg; margin-right: 6rpx; }
+
+.modal-mask { @include modal-mask; z-index: 200; }
+.modal-sheet { @include modal-sheet; z-index: 201; display: flex; flex-direction: column; }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 32rpx 32rpx $space-lg; border-bottom: 1rpx solid $border;
+}
+.modal-title { font-size: 34rpx; font-weight: 700; color: $text; }
+.modal-close { font-size: 36rpx; color: $text-faint; padding: 8rpx; }
+.modal-body { padding: $space-lg 32rpx; max-height: 55vh; }
+.form-group { margin-bottom: $space-lg; }
+.form-label { font-size: 28rpx; font-weight: 600; color: $text; margin-bottom: $space-sm; display: block; }
+.required { color: $primary; }
+.form-input { @include form-input; }
+.form-textarea {
+  width: 100%; min-height: 100rpx; border: 2rpx solid $border; border-radius: $radius-md;
+  padding: $space-md $space-lg; font-size: 26rpx; background: $surface; box-sizing: border-box;
+}
+.form-row { display: flex; gap: $space-lg; }
+.form-group.half { flex: 1; }
+.seg-group { display: flex; gap: 8rpx; flex-wrap: wrap; }
+.seg { @include segment; }
+.seg.sel { @include segment-active; }
+.modal-footer { padding: $space-md 32rpx 32rpx; padding-bottom: calc(32rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid $border; }
+.submit-btn { @include btn-primary; width: 100%; height: 88rpx; line-height: 88rpx; text-align: center; }
+.submit-btn.disabled { opacity: 0.5; pointer-events: none; }
 </style>
