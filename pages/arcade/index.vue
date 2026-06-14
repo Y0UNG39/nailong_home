@@ -18,14 +18,15 @@ const scCells = ref<ScCell[]>([])
 // Canvas 变量
 let scCanvas: any = null
 let scCtx: any = null
-let scCanvasW = 300
-let scCanvasH = 300
+let scDpr = 1
+let scCssW = 300  // CSS 逻辑宽度
+let scCssH = 300  // CSS 逻辑高度
 let scCanvasRect: any = null
 let scLastX = 0
 let scLastY = 0
 let scMoveCount = 0
 let scContentData: ImageData | null = null
-const SC_BRUSH_RADIUS = 20
+const SC_BRUSH_RADIUS = 15  // 逻辑像素
 
 function scLoadSet() { try { const s = uni.getStorageSync('scratch_settings'); if (s) { scMax.value = s.maxAmount || 100; scExp.value = s.exponent || 3 } } catch {} }
 function scSaveSet() { uni.setStorageSync('scratch_settings', { maxAmount: scMax.value, exponent: scExp.value }); scShowSet.value = false; scGen() }
@@ -54,18 +55,22 @@ function scInitCanvas() {
         if (!res || !res[0]) return
         const info = res[0]
 
+        scDpr = uni.getSystemInfoSync().pixelRatio || 2
+        scCssW = info.width
+        scCssH = info.height
+
         if (info.node) {
+          // 新版 Canvas 2d API
           scCanvas = info.node
           scCtx = scCanvas.getContext('2d')
-          // 不做 DPR 缩放，直接用 1x 分辨率，避免像素坐标问题
-          scCanvasW = info.width
-          scCanvasH = info.height
-          scCanvas.width = scCanvasW
-          scCanvas.height = scCanvasH
+          // 关键：位图尺寸 = CSS 尺寸 × DPR
+          scCanvas.width = scCssW * scDpr
+          scCanvas.height = scCssH * scDpr
+          // 缩放上下文，使绘制坐标用逻辑像素
+          scCtx.scale(scDpr, scDpr)
         } else {
+          // 旧版 API
           scCtx = uni.createCanvasContext('scratchCanvas')
-          scCanvasW = info.width || 300
-          scCanvasH = info.height || 300
         }
 
         scCanvasRect = { left: info.left, top: info.top }
@@ -74,13 +79,11 @@ function scInitCanvas() {
   }, 300)
 }
 
-// 绘制底层内容（网格）
+// 绘制底层内容（网格）- 坐标用逻辑像素
 function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highlight: boolean = false) {
-  // 背景
   ctx.fillStyle = '#FFF8E1'
   ctx.fillRect(0, 0, w, h)
 
-  // 4x4 网格
   const pad = 12, gap = 4
   const cw = (w - pad * 2 - gap * 3) / 4
   const ch = (h - pad * 2 - gap * 3) / 4
@@ -91,7 +94,6 @@ function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highligh
     const cell = cells[i]
     const match = highlight && cell.num === scWinNum.value
 
-    // 单元格背景
     ctx.fillStyle = match ? 'rgba(76,175,80,0.2)' : 'rgba(255,215,0,0.1)'
     ctx.fillRect(x, y, cw, ch)
     if (match) {
@@ -100,19 +102,16 @@ function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highligh
       ctx.strokeRect(x, y, cw, ch)
     }
 
-    // 数字
     ctx.fillStyle = match ? '#4CAF50' : '#333'
     ctx.font = 'bold 22px sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(String(cell.num), x + cw / 2, y + ch / 2 - 10)
 
-    // 金额
     ctx.fillStyle = match ? '#4CAF50' : '#888'
     ctx.font = match ? 'bold 12px sans-serif' : '11px sans-serif'
     ctx.fillText('¥' + cell.amount, x + cw / 2, y + ch / 2 + 12)
 
-    // 匹配标记
     if (match) {
       ctx.fillStyle = '#4CAF50'
       ctx.font = 'bold 10px sans-serif'
@@ -124,40 +123,35 @@ function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highligh
 function scDrawCard() {
   if (!scCtx) return
   const ctx = scCtx
-  const w = scCanvasW
-  const h = scCanvasH
   const cells = scCells.value
 
-  // 清空
-  if (scCanvas && ctx.clearRect) ctx.clearRect(0, 0, w, h)
+  // 清空（用位图尺寸）
+  if (scCanvas && ctx.clearRect) ctx.clearRect(0, 0, scCssW * scDpr, scCssH * scDpr)
 
-  // 1. 绘制底层内容
-  scDrawContent(ctx, w, h, cells, false)
+  // 1. 绘制底层内容（用逻辑像素，因为已 scale）
+  scDrawContent(ctx, scCssW, scCssH, cells, false)
 
-  // 2. 保存底层内容像素
+  // 2. 保存底层内容像素（用位图尺寸）
   if (scCanvas) {
-    scContentData = ctx.getImageData(0, 0, w, h)
+    scContentData = ctx.getImageData(0, 0, scCssW * scDpr, scCssH * scDpr)
   }
 
-  // 3. 绘制不透明涂层（覆盖内容）
+  // 3. 绘制不透明涂层
   ctx.globalCompositeOperation = 'source-over'
   ctx.fillStyle = '#B0B0B0'
-  ctx.fillRect(0, 0, w, h)
+  ctx.fillRect(0, 0, scCssW, scCssH)
 
-  // 涂层提示文字
   ctx.fillStyle = '#FFF'
   ctx.font = 'bold 18px sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText('刮开有惊喜', w / 2, h / 2 - 6)
+  ctx.fillText('刮开有惊喜', scCssW / 2, scCssH / 2 - 6)
   ctx.fillStyle = 'rgba(255,255,255,0.5)'
   ctx.font = '11px sans-serif'
-  ctx.fillText('用手指刮开涂层', w / 2, h / 2 + 14)
+  ctx.fillText('用手指刮开涂层', scCssW / 2, scCssH / 2 + 14)
 
-  // 重置合成模式
   ctx.globalCompositeOperation = 'source-over'
 
-  // 旧版 API 需要 draw()
   if (!scCanvas && ctx.draw) ctx.draw()
 }
 
@@ -171,25 +165,26 @@ function scTouchStart(e: any) {
 function scTouchMove(e: any) {
   if (scDone.value || !scCtx || !scCanvasRect) return
   const t = e.touches[0]
-  const x = t.clientX - scCanvasRect.left
+  const x = t.clientX - scCanvasRect.left  // 逻辑像素
   const y = t.clientY - scCanvasRect.top
 
   if (scCanvas && scContentData) {
-    // 新版 Canvas 2d API：像素替换
+    // 新版 API：像素替换
     try {
-      const imgData = scCtx.getImageData(0, 0, scCanvasW, scCanvasH)
+      const bw = scCssW * scDpr  // 位图宽度
+      const bh = scCssH * scDpr  // 位图高度
+      const imgData = scCtx.getImageData(0, 0, bw, bh)
       const pixels = imgData.data
       const content = scContentData.data
-      const r = SC_BRUSH_RADIUS
-      const cx = Math.round(x)
-      const cy = Math.round(y)
+      const r = SC_BRUSH_RADIUS * scDpr  // 笔触半径（位图像素）
+      const cx = Math.round(x * scDpr)   // 触摸中心（位图像素）
+      const cy = Math.round(y * scDpr)
 
-      // 在圆形区域内用底层像素替换
       for (let py = cy - r; py <= cy + r; py++) {
         for (let px = cx - r; px <= cx + r; px++) {
           const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-          if (dist <= r && px >= 0 && px < scCanvasW && py >= 0 && py < scCanvasH) {
-            const idx = (py * scCanvasW + px) * 4
+          if (dist <= r && px >= 0 && px < bw && py >= 0 && py < bh) {
+            const idx = (py * bw + px) * 4
             pixels[idx] = content[idx]
             pixels[idx + 1] = content[idx + 1]
             pixels[idx + 2] = content[idx + 2]
@@ -203,7 +198,7 @@ function scTouchMove(e: any) {
       console.error('Scratch error:', err)
     }
   } else {
-    // 旧版 API fallback：destination-out
+    // 旧版 API fallback
     scCtx.globalCompositeOperation = 'destination-out'
     scCtx.beginPath()
     scCtx.lineWidth = SC_BRUSH_RADIUS * 2
@@ -226,6 +221,8 @@ function scTouchMove(e: any) {
 
 function scTouchEnd() {
   if (scDone.value) return
+  // 至少滑动 10 次才检查，防止点一下就出结果
+  if (scMoveCount < 10) return
   scCheckReveal()
 }
 
@@ -233,17 +230,19 @@ function scCheckReveal() {
   if (!scCanvas || !scCtx || !scContentData || scDone.value) return
 
   try {
-    const imgData = scCtx.getImageData(0, 0, scCanvasW, scCanvasH)
+    const bw = scCssW * scDpr
+    const bh = scCssH * scDpr
+    const imgData = scCtx.getImageData(0, 0, bw, bh)
     const pixels = imgData.data
     const content = scContentData.data
 
     let total = 0
     let same = 0
 
-    // 每 3 像素采样
-    for (let y = 0; y < scCanvasH; y += 3) {
-      for (let x = 0; x < scCanvasW; x += 3) {
-        const idx = (y * scCanvasW + x) * 4
+    // 每 4 像素采样
+    for (let y = 0; y < bh; y += 4) {
+      for (let x = 0; x < bw; x += 4) {
+        const idx = (y * bw + x) * 4
         total++
         if (pixels[idx] === content[idx] &&
             pixels[idx + 1] === content[idx + 1] &&
@@ -253,7 +252,6 @@ function scCheckReveal() {
       }
     }
 
-    // same 是已揭示（和底层一样）的像素
     const revealed = same / total
     if (revealed >= 0.85) {
       scRevealAll()
@@ -273,11 +271,10 @@ function scRevealAll() {
   })
   scWin.value = totalWin
 
-  // 重绘：高亮匹配数字，无涂层
   setTimeout(() => {
     if (!scCtx) return
-    if (scCanvas && scCtx.clearRect) scCtx.clearRect(0, 0, scCanvasW, scCanvasH)
-    scDrawContent(scCtx, scCanvasW, scCanvasH, scCells.value, true)
+    if (scCanvas && scCtx.clearRect) scCtx.clearRect(0, 0, scCssW * scDpr, scCssH * scDpr)
+    scDrawContent(scCtx, scCssW, scCssH, scCells.value, true)
     if (!scCanvas && scCtx.draw) scCtx.draw()
   }, 100)
 
