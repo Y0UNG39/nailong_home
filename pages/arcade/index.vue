@@ -5,36 +5,289 @@ import { useAppStore } from '@/store/index'
 const store = useAppStore()
 const activeTab = ref<'scratch' | 'dice' | 'slot'>('scratch')
 
-// ---- 刮刮卡 ----
+// ---- 刮刮卡（Canvas 滑动刮开）----
 const scMax = ref(100)
 const scExp = ref(3)
 const scShowSet = ref(false)
 const scWinNum = ref(0)
-interface ScCell { num: number; amount: number; open: boolean }
-const scGrid = ref<ScCell[][]>([])
 const scDone = ref(false)
 const scWin = ref(0)
-const scOpen = ref(0)
+interface ScCell { num: number; amount: number }
+const scCells = ref<ScCell[]>([])
+
+// Canvas 变量
+let scCanvas: any = null
+let scCtx: any = null
+let scCanvasW = 300
+let scCanvasH = 300
+let scCanvasRect: any = null
+let scLastX = 0
+let scLastY = 0
+let scMoveCount = 0
+let scContentData: ImageData | null = null
+const SC_BRUSH_RADIUS = 20
 
 function scLoadSet() { try { const s = uni.getStorageSync('scratch_settings'); if (s) { scMax.value = s.maxAmount || 100; scExp.value = s.exponent || 3 } } catch {} }
 function scSaveSet() { uni.setStorageSync('scratch_settings', { maxAmount: scMax.value, exponent: scExp.value }); scShowSet.value = false; scGen() }
 function scRand(): number { return Math.max(1, Math.round(scMax.value * Math.pow(Math.random(), scExp.value))) }
+
 function scGen() {
-  scDone.value = false; scWin.value = 0; scOpen.value = 0
+  scDone.value = false
+  scWin.value = 0
+  scMoveCount = 0
   scWinNum.value = Math.floor(Math.random() * 10)
-  const g: ScCell[][] = []
-  for (let r = 0; r < 4; r++) { g.push([]); for (let c = 0; c < 4; c++) g[r].push({ num: Math.floor(Math.random() * 10), amount: scRand(), open: false }) }
-  scGrid.value = g
-}
-function scTap(r: number, c: number) {
-  if (scDone.value) return
-  const cell = scGrid.value[r]?.[c]; if (!cell || cell.open) return
-  cell.open = true; scOpen.value++
-  if (cell.num === scWinNum.value) scWin.value += cell.amount
-  if (scOpen.value >= 16) scDone.value = true
+
+  const cells: ScCell[] = []
+  for (let i = 0; i < 16; i++) {
+    cells.push({ num: Math.floor(Math.random() * 10), amount: scRand() })
+  }
+  scCells.value = cells
+
+  if (scCtx) scDrawCard()
 }
 
-onMounted(() => { scLoadSet(); scGen() })
+function scInitCanvas() {
+  setTimeout(() => {
+    uni.createSelectorQuery().select('#scratchCanvas')
+      .fields({ node: true, size: true, rect: true })
+      .exec((res: any) => {
+        if (!res || !res[0]) return
+        const info = res[0]
+
+        if (info.node) {
+          scCanvas = info.node
+          scCtx = scCanvas.getContext('2d')
+          // 不做 DPR 缩放，直接用 1x 分辨率，避免像素坐标问题
+          scCanvasW = info.width
+          scCanvasH = info.height
+          scCanvas.width = scCanvasW
+          scCanvas.height = scCanvasH
+        } else {
+          scCtx = uni.createCanvasContext('scratchCanvas')
+          scCanvasW = info.width || 300
+          scCanvasH = info.height || 300
+        }
+
+        scCanvasRect = { left: info.left, top: info.top }
+        scGen()
+      })
+  }, 300)
+}
+
+// 绘制底层内容（网格）
+function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highlight: boolean = false) {
+  // 背景
+  ctx.fillStyle = '#FFF8E1'
+  ctx.fillRect(0, 0, w, h)
+
+  // 4x4 网格
+  const pad = 12, gap = 4
+  const cw = (w - pad * 2 - gap * 3) / 4
+  const ch = (h - pad * 2 - gap * 3) / 4
+
+  for (let i = 0; i < 16; i++) {
+    const r = Math.floor(i / 4), c = i % 4
+    const x = pad + c * (cw + gap), y = pad + r * (ch + gap)
+    const cell = cells[i]
+    const match = highlight && cell.num === scWinNum.value
+
+    // 单元格背景
+    ctx.fillStyle = match ? 'rgba(76,175,80,0.2)' : 'rgba(255,215,0,0.1)'
+    ctx.fillRect(x, y, cw, ch)
+    if (match) {
+      ctx.strokeStyle = '#4CAF50'
+      ctx.lineWidth = 2
+      ctx.strokeRect(x, y, cw, ch)
+    }
+
+    // 数字
+    ctx.fillStyle = match ? '#4CAF50' : '#333'
+    ctx.font = 'bold 22px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(String(cell.num), x + cw / 2, y + ch / 2 - 10)
+
+    // 金额
+    ctx.fillStyle = match ? '#4CAF50' : '#888'
+    ctx.font = match ? 'bold 12px sans-serif' : '11px sans-serif'
+    ctx.fillText('¥' + cell.amount, x + cw / 2, y + ch / 2 + 12)
+
+    // 匹配标记
+    if (match) {
+      ctx.fillStyle = '#4CAF50'
+      ctx.font = 'bold 10px sans-serif'
+      ctx.fillText('✓', x + cw - 10, y + 10)
+    }
+  }
+}
+
+function scDrawCard() {
+  if (!scCtx) return
+  const ctx = scCtx
+  const w = scCanvasW
+  const h = scCanvasH
+  const cells = scCells.value
+
+  // 清空
+  if (scCanvas && ctx.clearRect) ctx.clearRect(0, 0, w, h)
+
+  // 1. 绘制底层内容
+  scDrawContent(ctx, w, h, cells, false)
+
+  // 2. 保存底层内容像素
+  if (scCanvas) {
+    scContentData = ctx.getImageData(0, 0, w, h)
+  }
+
+  // 3. 绘制不透明涂层（覆盖内容）
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.fillStyle = '#B0B0B0'
+  ctx.fillRect(0, 0, w, h)
+
+  // 涂层提示文字
+  ctx.fillStyle = '#FFF'
+  ctx.font = 'bold 18px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('刮开有惊喜', w / 2, h / 2 - 6)
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  ctx.font = '11px sans-serif'
+  ctx.fillText('用手指刮开涂层', w / 2, h / 2 + 14)
+
+  // 重置合成模式
+  ctx.globalCompositeOperation = 'source-over'
+
+  // 旧版 API 需要 draw()
+  if (!scCanvas && ctx.draw) ctx.draw()
+}
+
+function scTouchStart(e: any) {
+  if (scDone.value || !scCanvasRect) return
+  const t = e.touches[0]
+  scLastX = t.clientX - scCanvasRect.left
+  scLastY = t.clientY - scCanvasRect.top
+}
+
+function scTouchMove(e: any) {
+  if (scDone.value || !scCtx || !scCanvasRect) return
+  const t = e.touches[0]
+  const x = t.clientX - scCanvasRect.left
+  const y = t.clientY - scCanvasRect.top
+
+  if (scCanvas && scContentData) {
+    // 新版 Canvas 2d API：像素替换
+    try {
+      const imgData = scCtx.getImageData(0, 0, scCanvasW, scCanvasH)
+      const pixels = imgData.data
+      const content = scContentData.data
+      const r = SC_BRUSH_RADIUS
+      const cx = Math.round(x)
+      const cy = Math.round(y)
+
+      // 在圆形区域内用底层像素替换
+      for (let py = cy - r; py <= cy + r; py++) {
+        for (let px = cx - r; px <= cx + r; px++) {
+          const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
+          if (dist <= r && px >= 0 && px < scCanvasW && py >= 0 && py < scCanvasH) {
+            const idx = (py * scCanvasW + px) * 4
+            pixels[idx] = content[idx]
+            pixels[idx + 1] = content[idx + 1]
+            pixels[idx + 2] = content[idx + 2]
+            pixels[idx + 3] = content[idx + 3]
+          }
+        }
+      }
+
+      scCtx.putImageData(imgData, 0, 0)
+    } catch (err) {
+      console.error('Scratch error:', err)
+    }
+  } else {
+    // 旧版 API fallback：destination-out
+    scCtx.globalCompositeOperation = 'destination-out'
+    scCtx.beginPath()
+    scCtx.lineWidth = SC_BRUSH_RADIUS * 2
+    scCtx.lineCap = 'round'
+    scCtx.lineJoin = 'round'
+    scCtx.moveTo(scLastX, scLastY)
+    scCtx.lineTo(x, y)
+    scCtx.stroke()
+    scCtx.beginPath()
+    scCtx.arc(x, y, SC_BRUSH_RADIUS, 0, Math.PI * 2)
+    scCtx.fill()
+    scCtx.globalCompositeOperation = 'source-over'
+    if (scCtx.draw) scCtx.draw(true)
+  }
+
+  scLastX = x
+  scLastY = y
+  scMoveCount++
+}
+
+function scTouchEnd() {
+  if (scDone.value) return
+  scCheckReveal()
+}
+
+function scCheckReveal() {
+  if (!scCanvas || !scCtx || !scContentData || scDone.value) return
+
+  try {
+    const imgData = scCtx.getImageData(0, 0, scCanvasW, scCanvasH)
+    const pixels = imgData.data
+    const content = scContentData.data
+
+    let total = 0
+    let same = 0
+
+    // 每 3 像素采样
+    for (let y = 0; y < scCanvasH; y += 3) {
+      for (let x = 0; x < scCanvasW; x += 3) {
+        const idx = (y * scCanvasW + x) * 4
+        total++
+        if (pixels[idx] === content[idx] &&
+            pixels[idx + 1] === content[idx + 1] &&
+            pixels[idx + 2] === content[idx + 2]) {
+          same++
+        }
+      }
+    }
+
+    // same 是已揭示（和底层一样）的像素
+    const revealed = same / total
+    if (revealed >= 0.85) {
+      scRevealAll()
+    }
+  } catch (e) {
+    if (scMoveCount > 60) scRevealAll()
+  }
+}
+
+function scRevealAll() {
+  if (scDone.value) return
+  scDone.value = true
+
+  let totalWin = 0
+  scCells.value.forEach(cell => {
+    if (cell.num === scWinNum.value) totalWin += cell.amount
+  })
+  scWin.value = totalWin
+
+  // 重绘：高亮匹配数字，无涂层
+  setTimeout(() => {
+    if (!scCtx) return
+    if (scCanvas && scCtx.clearRect) scCtx.clearRect(0, 0, scCanvasW, scCanvasH)
+    scDrawContent(scCtx, scCanvasW, scCanvasH, scCells.value, true)
+    if (!scCanvas && scCtx.draw) scCtx.draw()
+  }, 100)
+
+  uni.showToast({
+    title: totalWin > 0 ? `中奖 ¥${totalWin}！` : '没有匹配的数字',
+    icon: totalWin > 0 ? 'success' : 'none'
+  })
+}
+
+onMounted(() => { scLoadSet(); setTimeout(() => scInitCanvas(), 100) })
 
 // ---- 骰子 ----
 const diceCount = ref(2)
@@ -186,7 +439,7 @@ function slotSettle(final: string[]) {
     </view>
 
     <!-- 刮刮卡 -->
-    <view class="tab-content" v-if="activeTab === 'scratch'">
+    <view class="tab-content" v-show="activeTab === 'scratch'">
       <view class="sc-header">
         <text class="sc-title">刮刮卡</text>
         <text class="sc-gear" @tap="scShowSet = true">⚙️ 设置</text>
@@ -196,33 +449,27 @@ function slotSettle(final: string[]) {
         <text class="sc-wn-num">{{ scWinNum }}</text>
         <text class="sc-wn-hint">刮到相同数字即中奖</text>
       </view>
-      <view class="sc-grid">
-        <view class="sc-row" v-for="(row, ri) in scGrid" :key="ri">
-          <view class="sc-cell" v-for="(cell, ci) in row" :key="ci" @tap="scTap(ri, ci)">
-            <view v-if="cell.open" class="sc-inner">
-              <view class="sc-top"><text class="sc-amount">¥{{ cell.amount }}</text></view>
-              <view class="sc-bot" :class="{ win: cell.num === scWinNum }">
-                <text class="sc-num">{{ cell.num }}</text>
-              </view>
-              <text v-if="cell.num === scWinNum" class="sc-tick">✓</text>
-            </view>
-            <view v-else class="sc-coat">
-              <text class="sc-coat-q">?</text>
-              <text class="sc-coat-h">刮开</text>
-            </view>
-          </view>
-        </view>
+      <view class="sc-card-wrap">
+        <canvas
+          id="scratchCanvas"
+          canvas-id="scratchCanvas"
+          type="2d"
+          class="sc-canvas"
+          @touchstart="scTouchStart"
+          @touchmove.prevent="scTouchMove"
+          @touchend="scTouchEnd"
+        />
       </view>
       <view class="sc-res" v-if="scDone">
         <text v-if="scWin > 0" class="sc-res-t">🎉 赢了 ¥{{ scWin }}</text>
-        <text v-else class="sc-res-t">😅 再接再厉</text>
+        <text v-else class="sc-res-t">😅 没有匹配的数字</text>
       </view>
       <view class="sc-res" v-else>
-        <text class="sc-res-p">已刮 {{ scOpen }}/16</text>
+        <text class="sc-res-p">用手指刮开涂层</text>
       </view>
       <view class="sc-btn-r">
         <view class="sc-btn" :class="{ off: !scDone }" @tap="scGen">
-          <text class="sc-btn-t">{{ scDone ? '🔄 再来一张' : '继续刮 ⇡' }}</text>
+          <text class="sc-btn-t">{{ scDone ? '🔄 再来一张' : '刮开后可重来' }}</text>
         </view>
       </view>
 
@@ -340,35 +587,20 @@ function slotSettle(final: string[]) {
 .sc-header { display: flex; justify-content: space-between; align-items: center; padding: 0 $space-md 8rpx; }
 .sc-title { font-size: $text-base; font-weight: 700; color: $text; }
 .sc-gear { font-size: $text-xs; color: $accent; padding: 8rpx $space-md; background: rgba(255,152,0,0.08); border-radius: $radius-md; }
-.sc-wn { display: flex; align-items: center; justify-content: center; gap: $space-md; padding: 8rpx 0 $space-sm; }
+.sc-wn { display: flex; align-items: center; justify-content: center; gap: $space-md; padding: $space-sm 0 $space-md; }
 .sc-wn-label { font-size: $text-sm; color: $text-secondary; }
 .sc-wn-num { font-size: 44rpx; font-weight: 800; color: $error; }
 .sc-wn-hint { font-size: 18rpx; color: $text-faint; }
-.sc-grid { padding: 0 $space-md; }
-.sc-row { display: flex; gap: 10rpx; margin-bottom: 10rpx; }
-.sc-cell { flex: 1; aspect-ratio: 1; }
-.sc-inner {
-  width: 100%; height: 100%; border-radius: 14rpx; background: $white;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.06); position: relative;
+.sc-card-wrap {
+  margin: 0 $space-md;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.12);
 }
-.sc-top { flex: 1; display: flex; align-items: flex-end; padding-bottom: 2rpx; }
-.sc-amount { font-size: 18rpx; color: #795548; }
-.sc-bot { flex: 1; display: flex; align-items: flex-start; }
-.sc-bot.win { background: rgba(76,175,80,0.08); border-radius: 0 0 14rpx 14rpx; width: 100%; justify-content: center; }
-.sc-num { font-size: 26rpx; font-weight: 700; color: $text; }
-.sc-tick { position: absolute; top: 4rpx; right: 8rpx; font-size: 16rpx; color: $success; font-weight: 700; }
-.sc-coat {
-  width: 100%; height: 100%; border-radius: 14rpx;
-  background: linear-gradient(135deg, #BDBDBD 20%, #9E9E9E 80%);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.12);
-}
-.sc-coat-q { font-size: 34rpx; color: $white; font-weight: 700; text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.2); }
-.sc-coat-h { font-size: 14rpx; color: rgba(255,255,255,0.65); margin-top: 2rpx; }
-.sc-res { text-align: center; padding: $space-sm 0; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+.sc-canvas { width: 100%; height: 300px; display: block; }
+.sc-res { text-align: center; padding: $space-sm 0; display: flex; align-items: center; justify-content: center; }
 .sc-res-t { font-size: 28rpx; color: $text; }
-.sc-res-p { font-size: 20rpx; color: $text-faint; }
+.sc-res-p { font-size: 24rpx; color: $text-faint; }
 .sc-btn-r { display: flex; justify-content: center; padding: 4rpx 0 $space-md; }
 .sc-btn {
   display: inline-flex; align-items: center; justify-content: center;
