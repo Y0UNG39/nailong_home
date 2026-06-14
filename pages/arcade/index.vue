@@ -217,7 +217,7 @@ function scTouchEnd() {
   // 检查刮开比例
   const scratched = scScratchGrid.filter(Boolean).length
   const total = scScratchGrid.length
-  if (total > 0 && scratched / total >= 0.85) {
+  if (total > 0 && scratched / total >= 0.9) {
     scRevealAll()
   }
 }
