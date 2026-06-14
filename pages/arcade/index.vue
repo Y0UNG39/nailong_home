@@ -15,18 +15,19 @@ const scWin = ref(0)
 interface ScCell { num: number; amount: number }
 const scCells = ref<ScCell[]>([])
 
-// Canvas 变量
-let scCanvas: any = null
-let scCtx: any = null
+// Canvas 变量（双层：底层内容 + 顶层涂层）
+let scBgCanvas: any = null
+let scBgCtx: any = null
+let scCoatCanvas: any = null
+let scCoatCtx: any = null
 let scDpr = 1
-let scCssW = 300  // CSS 逻辑宽度
-let scCssH = 300  // CSS 逻辑高度
+let scCssW = 300
+let scCssH = 300
 let scCanvasRect: any = null
 let scLastX = 0
 let scLastY = 0
 let scMoveCount = 0
-let scContentData: ImageData | null = null
-const SC_BRUSH_RADIUS = 15  // 逻辑像素
+const SC_BRUSH_RADIUS = 15
 
 function scLoadSet() { try { const s = uni.getStorageSync('scratch_settings'); if (s) { scMax.value = s.maxAmount || 100; scExp.value = s.exponent || 3 } } catch {} }
 function scSaveSet() { uni.setStorageSync('scratch_settings', { maxAmount: scMax.value, exponent: scExp.value }); scShowSet.value = false; scGen() }
@@ -44,42 +45,56 @@ function scGen() {
   }
   scCells.value = cells
 
-  if (scCtx) scDrawCard()
+  if (scBgCtx && scCoatCtx) scDrawCard()
 }
 
 function scInitCanvas() {
   setTimeout(() => {
-    uni.createSelectorQuery().select('#scratchCanvas')
+    // 初始化底层 Canvas
+    uni.createSelectorQuery().select('#scratchBgCanvas')
       .fields({ node: true, size: true, rect: true })
-      .exec((res: any) => {
-        if (!res || !res[0]) return
-        const info = res[0]
+      .exec((res1: any) => {
+        if (!res1 || !res1[0]) return
+        const bg = res1[0]
 
         scDpr = uni.getSystemInfoSync().pixelRatio || 2
-        scCssW = info.width
-        scCssH = info.height
+        scCssW = bg.width
+        scCssH = bg.height
 
-        if (info.node) {
-          // 新版 Canvas 2d API
-          scCanvas = info.node
-          scCtx = scCanvas.getContext('2d')
-          // 关键：位图尺寸 = CSS 尺寸 × DPR
-          scCanvas.width = scCssW * scDpr
-          scCanvas.height = scCssH * scDpr
-          // 缩放上下文，使绘制坐标用逻辑像素
-          scCtx.scale(scDpr, scDpr)
+        if (bg.node) {
+          scBgCanvas = bg.node
+          scBgCtx = scBgCanvas.getContext('2d')
+          scBgCanvas.width = scCssW * scDpr
+          scBgCanvas.height = scCssH * scDpr
+          scBgCtx.scale(scDpr, scDpr)
         } else {
-          // 旧版 API
-          scCtx = uni.createCanvasContext('scratchCanvas')
+          scBgCtx = uni.createCanvasContext('scratchBgCanvas')
         }
 
-        scCanvasRect = { left: info.left, top: info.top }
-        scGen()
+        // 初始化涂层 Canvas
+        uni.createSelectorQuery().select('#scratchCoatCanvas')
+          .fields({ node: true, size: true, rect: true })
+          .exec((res2: any) => {
+            if (!res2 || !res2[0]) return
+            const coat = res2[0]
+
+            if (coat.node) {
+              scCoatCanvas = coat.node
+              scCoatCtx = scCoatCanvas.getContext('2d')
+              scCoatCanvas.width = scCssW * scDpr
+              scCoatCanvas.height = scCssH * scDpr
+              scCoatCtx.scale(scDpr, scDpr)
+            } else {
+              scCoatCtx = uni.createCanvasContext('scratchCoatCanvas')
+            }
+
+            scCanvasRect = { left: coat.left, top: coat.top }
+            scGen()
+          })
       })
   }, 300)
 }
 
-// 绘制底层内容（网格）- 坐标用逻辑像素
 function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highlight: boolean = false) {
   ctx.fillStyle = '#FFF8E1'
   ctx.fillRect(0, 0, w, h)
@@ -121,38 +136,28 @@ function scDrawContent(ctx: any, w: number, h: number, cells: ScCell[], highligh
 }
 
 function scDrawCard() {
-  if (!scCtx) return
-  const ctx = scCtx
-  const cells = scCells.value
+  if (!scBgCtx || !scCoatCtx) return
 
-  // 清空（用位图尺寸）
-  if (scCanvas && ctx.clearRect) ctx.clearRect(0, 0, scCssW * scDpr, scCssH * scDpr)
+  // 底层：画内容
+  if (scBgCanvas && scBgCtx.clearRect) scBgCtx.clearRect(0, 0, scCssW, scCssH)
+  scDrawContent(scBgCtx, scCssW, scCssH, scCells.value, false)
+  if (!scBgCanvas && scBgCtx.draw) scBgCtx.draw()
 
-  // 1. 绘制底层内容（用逻辑像素，因为已 scale）
-  scDrawContent(ctx, scCssW, scCssH, cells, false)
-
-  // 2. 保存底层内容像素（用位图尺寸）
-  if (scCanvas) {
-    scContentData = ctx.getImageData(0, 0, scCssW * scDpr, scCssH * scDpr)
-  }
-
-  // 3. 绘制不透明涂层
-  ctx.globalCompositeOperation = 'source-over'
-  ctx.fillStyle = '#B0B0B0'
-  ctx.fillRect(0, 0, scCssW, scCssH)
-
-  ctx.fillStyle = '#FFF'
-  ctx.font = 'bold 18px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('刮开有惊喜', scCssW / 2, scCssH / 2 - 6)
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  ctx.font = '11px sans-serif'
-  ctx.fillText('用手指刮开涂层', scCssW / 2, scCssH / 2 + 14)
-
-  ctx.globalCompositeOperation = 'source-over'
-
-  if (!scCanvas && ctx.draw) ctx.draw()
+  // 顶层：画涂层
+  if (scCoatCanvas && scCoatCtx.clearRect) scCoatCtx.clearRect(0, 0, scCssW, scCssH)
+  scCoatCtx.globalCompositeOperation = 'source-over'
+  scCoatCtx.fillStyle = '#B0B0B0'
+  scCoatCtx.fillRect(0, 0, scCssW, scCssH)
+  scCoatCtx.fillStyle = '#FFF'
+  scCoatCtx.font = 'bold 18px sans-serif'
+  scCoatCtx.textAlign = 'center'
+  scCoatCtx.textBaseline = 'middle'
+  scCoatCtx.fillText('刮开有惊喜', scCssW / 2, scCssH / 2 - 6)
+  scCoatCtx.fillStyle = 'rgba(255,255,255,0.5)'
+  scCoatCtx.font = '11px sans-serif'
+  scCoatCtx.fillText('用手指刮开涂层', scCssW / 2, scCssH / 2 + 14)
+  scCoatCtx.globalCompositeOperation = 'source-over'
+  if (!scCoatCanvas && scCoatCtx.draw) scCoatCtx.draw()
 }
 
 function scTouchStart(e: any) {
@@ -163,56 +168,26 @@ function scTouchStart(e: any) {
 }
 
 function scTouchMove(e: any) {
-  if (scDone.value || !scCtx || !scCanvasRect) return
+  if (scDone.value || !scCoatCtx || !scCanvasRect) return
   const t = e.touches[0]
-  const x = t.clientX - scCanvasRect.left  // 逻辑像素
+  const x = t.clientX - scCanvasRect.left
   const y = t.clientY - scCanvasRect.top
 
-  if (scCanvas && scContentData) {
-    // 新版 API：像素替换
-    try {
-      const bw = scCssW * scDpr  // 位图宽度
-      const bh = scCssH * scDpr  // 位图高度
-      const imgData = scCtx.getImageData(0, 0, bw, bh)
-      const pixels = imgData.data
-      const content = scContentData.data
-      const r = SC_BRUSH_RADIUS * scDpr  // 笔触半径（位图像素）
-      const cx = Math.round(x * scDpr)   // 触摸中心（位图像素）
-      const cy = Math.round(y * scDpr)
+  // 在涂层上擦除
+  scCoatCtx.globalCompositeOperation = 'destination-out'
+  scCoatCtx.beginPath()
+  scCoatCtx.lineWidth = SC_BRUSH_RADIUS * 2
+  scCoatCtx.lineCap = 'round'
+  scCoatCtx.lineJoin = 'round'
+  scCoatCtx.moveTo(scLastX, scLastY)
+  scCoatCtx.lineTo(x, y)
+  scCoatCtx.stroke()
+  scCoatCtx.beginPath()
+  scCoatCtx.arc(x, y, SC_BRUSH_RADIUS, 0, Math.PI * 2)
+  scCoatCtx.fill()
+  scCoatCtx.globalCompositeOperation = 'source-over'
 
-      for (let py = cy - r; py <= cy + r; py++) {
-        for (let px = cx - r; px <= cx + r; px++) {
-          const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2)
-          if (dist <= r && px >= 0 && px < bw && py >= 0 && py < bh) {
-            const idx = (py * bw + px) * 4
-            pixels[idx] = content[idx]
-            pixels[idx + 1] = content[idx + 1]
-            pixels[idx + 2] = content[idx + 2]
-            pixels[idx + 3] = content[idx + 3]
-          }
-        }
-      }
-
-      scCtx.putImageData(imgData, 0, 0)
-    } catch (err) {
-      console.error('Scratch error:', err)
-    }
-  } else {
-    // 旧版 API fallback
-    scCtx.globalCompositeOperation = 'destination-out'
-    scCtx.beginPath()
-    scCtx.lineWidth = SC_BRUSH_RADIUS * 2
-    scCtx.lineCap = 'round'
-    scCtx.lineJoin = 'round'
-    scCtx.moveTo(scLastX, scLastY)
-    scCtx.lineTo(x, y)
-    scCtx.stroke()
-    scCtx.beginPath()
-    scCtx.arc(x, y, SC_BRUSH_RADIUS, 0, Math.PI * 2)
-    scCtx.fill()
-    scCtx.globalCompositeOperation = 'source-over'
-    if (scCtx.draw) scCtx.draw(true)
-  }
+  if (!scCoatCanvas && scCoatCtx.draw) scCoatCtx.draw(true)
 
   scLastX = x
   scLastY = y
@@ -221,39 +196,31 @@ function scTouchMove(e: any) {
 
 function scTouchEnd() {
   if (scDone.value) return
-  // 至少滑动 10 次才检查，防止点一下就出结果
   if (scMoveCount < 10) return
   scCheckReveal()
 }
 
 function scCheckReveal() {
-  if (!scCanvas || !scCtx || !scContentData || scDone.value) return
+  if (!scCoatCanvas || !scCoatCtx || scDone.value) return
 
   try {
     const bw = scCssW * scDpr
     const bh = scCssH * scDpr
-    const imgData = scCtx.getImageData(0, 0, bw, bh)
+    const imgData = scCoatCtx.getImageData(0, 0, bw, bh)
     const pixels = imgData.data
-    const content = scContentData.data
 
     let total = 0
-    let same = 0
+    let transparent = 0
 
-    // 每 4 像素采样
     for (let y = 0; y < bh; y += 4) {
       for (let x = 0; x < bw; x += 4) {
-        const idx = (y * bw + x) * 4
+        const idx = (y * bw + x) * 4 + 3
         total++
-        if (pixels[idx] === content[idx] &&
-            pixels[idx + 1] === content[idx + 1] &&
-            pixels[idx + 2] === content[idx + 2]) {
-          same++
-        }
+        if (pixels[idx] < 128) transparent++
       }
     }
 
-    const revealed = same / total
-    if (revealed >= 0.85) {
+    if (transparent / total >= 0.85) {
       scRevealAll()
     }
   } catch (e) {
@@ -271,11 +238,22 @@ function scRevealAll() {
   })
   scWin.value = totalWin
 
+  // 清除涂层
   setTimeout(() => {
-    if (!scCtx) return
-    if (scCanvas && scCtx.clearRect) scCtx.clearRect(0, 0, scCssW * scDpr, scCssH * scDpr)
-    scDrawContent(scCtx, scCssW, scCssH, scCells.value, true)
-    if (!scCanvas && scCtx.draw) scCtx.draw()
+    if (scCoatCtx) {
+      if (scCoatCanvas && scCoatCtx.clearRect) {
+        scCoatCtx.clearRect(0, 0, scCssW, scCssH)
+      } else if (scCoatCtx.draw) {
+        scCoatCtx.clearRect(0, 0, scCssW, scCssH)
+        scCoatCtx.draw()
+      }
+    }
+    // 重绘底层（高亮）
+    if (scBgCtx) {
+      if (scBgCanvas && scBgCtx.clearRect) scBgCtx.clearRect(0, 0, scCssW, scCssH)
+      scDrawContent(scBgCtx, scCssW, scCssH, scCells.value, true)
+      if (!scBgCanvas && scBgCtx.draw) scBgCtx.draw()
+    }
   }, 100)
 
   uni.showToast({
@@ -447,11 +425,12 @@ function slotSettle(final: string[]) {
         <text class="sc-wn-hint">刮到相同数字即中奖</text>
       </view>
       <view class="sc-card-wrap">
+        <canvas id="scratchBgCanvas" canvas-id="scratchBgCanvas" type="2d" class="sc-canvas" />
         <canvas
-          id="scratchCanvas"
-          canvas-id="scratchCanvas"
+          id="scratchCoatCanvas"
+          canvas-id="scratchCoatCanvas"
           type="2d"
-          class="sc-canvas"
+          class="sc-canvas sc-coat"
           @touchstart="scTouchStart"
           @touchmove.prevent="scTouchMove"
           @touchend="scTouchEnd"
@@ -593,8 +572,10 @@ function slotSettle(final: string[]) {
   border-radius: $radius-lg;
   overflow: hidden;
   box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.12);
+  position: relative;
 }
 .sc-canvas { width: 100%; height: 300px; display: block; }
+.sc-coat { position: absolute; top: 0; left: 0; }
 .sc-res { text-align: center; padding: $space-sm 0; display: flex; align-items: center; justify-content: center; }
 .sc-res-t { font-size: 28rpx; color: $text; }
 .sc-res-p { font-size: 24rpx; color: $text-faint; }
