@@ -28,6 +28,9 @@ let scLastX = 0
 let scLastY = 0
 let scMoveCount = 0
 const SC_BRUSH_RADIUS = 15
+// 刮开追踪（用一维数组记录每个格子是否被刮开）
+const SC_GRID_SIZE = 20 // 20x20 网格
+let scScratchGrid: boolean[] = []
 
 function scLoadSet() { try { const s = uni.getStorageSync('scratch_settings'); if (s) { scMax.value = s.maxAmount || 100; scExp.value = s.exponent || 3 } } catch {} }
 function scSaveSet() { uni.setStorageSync('scratch_settings', { maxAmount: scMax.value, exponent: scExp.value }); scShowSet.value = false; scGen() }
@@ -44,6 +47,9 @@ function scGen() {
     cells.push({ num: Math.floor(Math.random() * 10), amount: scRand() })
   }
   scCells.value = cells
+
+  // 初始化刮开追踪网格
+  scScratchGrid = new Array(SC_GRID_SIZE * SC_GRID_SIZE).fill(false)
 
   if (scBgCtx && scCoatCtx) scDrawCard()
 }
@@ -189,6 +195,18 @@ function scTouchMove(e: any) {
 
   if (!scCoatCanvas && scCoatCtx.draw) scCoatCtx.draw(true)
 
+  // 标记刮开的网格区域
+  const gridX = Math.floor(x / scCssW * SC_GRID_SIZE)
+  const gridY = Math.floor(y / scCssH * SC_GRID_SIZE)
+  const r = 2 // 标记周围 2 格
+  for (let gy = gridY - r; gy <= gridY + r; gy++) {
+    for (let gx = gridX - r; gx <= gridX + r; gx++) {
+      if (gx >= 0 && gx < SC_GRID_SIZE && gy >= 0 && gy < SC_GRID_SIZE) {
+        scScratchGrid[gy * SC_GRID_SIZE + gx] = true
+      }
+    }
+  }
+
   scLastX = x
   scLastY = y
   scMoveCount++
@@ -196,35 +214,11 @@ function scTouchMove(e: any) {
 
 function scTouchEnd() {
   if (scDone.value) return
-  if (scMoveCount < 10) return
-  scCheckReveal()
-}
-
-function scCheckReveal() {
-  if (!scCoatCanvas || !scCoatCtx || scDone.value) return
-
-  try {
-    const bw = scCssW * scDpr
-    const bh = scCssH * scDpr
-    const imgData = scCoatCtx.getImageData(0, 0, bw, bh)
-    const pixels = imgData.data
-
-    let total = 0
-    let transparent = 0
-
-    for (let y = 0; y < bh; y += 4) {
-      for (let x = 0; x < bw; x += 4) {
-        const idx = (y * bw + x) * 4 + 3
-        total++
-        if (pixels[idx] < 128) transparent++
-      }
-    }
-
-    if (transparent / total >= 0.85) {
-      scRevealAll()
-    }
-  } catch (e) {
-    if (scMoveCount > 60) scRevealAll()
+  // 检查刮开比例
+  const scratched = scScratchGrid.filter(Boolean).length
+  const total = scScratchGrid.length
+  if (total > 0 && scratched / total >= 0.85) {
+    scRevealAll()
   }
 }
 
