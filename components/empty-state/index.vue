@@ -20,7 +20,9 @@ const emit = defineEmits<{ action: [] }>()
 
 <template>
   <view class="empty">
-    <view class="icon-circle">{{ icon }}</view>
+    <view class="icon-circle">
+      <text class="icon-emoji">{{ icon }}</text>
+    </view>
     <text class="text">{{ text }}</text>
     <text class="sub" v-if="subText">{{ subText }}</text>
     <view v-if="showBtn" class="btn" @tap="emit('action')">
@@ -37,16 +39,17 @@ const emit = defineEmits<{ action: [] }>()
   flex-direction: column;
   align-items: center;
   padding: 100rpx 48rpx 80rpx;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .icon-circle {
   width: 140rpx; height: 140rpx; border-radius: 50%;
   background: linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,212,79,0.12));
   display: flex; align-items: center; justify-content: center;
-  font-size: 64rpx; margin-bottom: 32rpx;
+  margin-bottom: 32rpx;
 }
+.icon-emoji { font-size: 56rpx; }
 .text { font-size: $text-base; font-weight: 600; color: $text; }
-.sub { font-size: $text-sm; color: $text-faint; margin-top: 10rpx; }
+.sub { font-size: $text-sm; color: $text-muted; margin-top: 10rpx; text-align: center; max-width: 400rpx; }
 .btn {
   margin-top: 36rpx; padding: 18rpx 56rpx; border-radius: 48rpx;
   @include btn-primary;

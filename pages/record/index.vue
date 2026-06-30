@@ -516,13 +516,14 @@ onShow(() => {
 @import '@/uni.scss';
 
 /* ---- 顶层子Tab ---- */
-.top-tabs { @include sub-tabs; }
+.top-tabs { @include sub-tabs; padding: $space-xs; }
 .top-tab {
   flex: 1; text-align: center; padding: 18rpx 0;
   font-size: 28rpx; color: $text-muted; border-radius: $radius-md;
-  transition: all 0.2s;
+  transition: all 0.25s $ease-out-quart;
+  &:active { transform: scale(0.95); }
 }
-.top-tab.active { @include sub-tab-active; }
+.top-tab.active { @include sub-tab-active; box-shadow: 0 4rpx 12rpx rgba(255, 184, 0, 0.25); }
 
 /* ---- 月份导航 ---- */
 .cal-nav {
@@ -532,20 +533,27 @@ onShow(() => {
 .cal-nav-left { display: flex; align-items: center; gap: $space-md; }
 .cal-arrow {
   width: 56rpx; height: 56rpx; border-radius: 50%;
-  background: rgba(255,255,255,0.85);
+  background: rgba(255, 255, 255, 0.85);
   display: flex; align-items: center; justify-content: center;
   font-size: $text-lg; color: $text-secondary; font-weight: 700;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
-  &:active { transform: scale(0.92); }
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s $ease-out-quart;
+  &:active { transform: scale(0.88); }
 }
-.cal-title { font-size: $text-base; font-weight: 700; color: $text; }
+.cal-title {
+  font-size: $text-base;
+  font-weight: 700;
+  color: $text;
+  padding: 0 8rpx;
+}
 .cal-today {
   width: 56rpx; height: 56rpx; border-radius: 50%;
   background: $gradient-accent;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: $shadow-button;
+  box-shadow: $shadow-button, 0 0 20rpx rgba(255, 152, 0, 0.15);
   position: absolute; right: 0;
-  &:active { transform: scale(0.92); }
+  transition: transform 0.2s $ease-out-quart;
+  &:active { transform: scale(0.88); }
 }
 .cal-today-t { font-size: $text-xs; color: $white; font-weight: 700; }
 
@@ -553,7 +561,7 @@ onShow(() => {
 .picker-mask { @include modal-mask; display: flex; align-items: center; justify-content: center; }
 .picker-sheet {
   width: 580rpx; background: $white; border-radius: $radius-lg;
-  padding: 32rpx; animation: fadeIn 0.2s ease-out;
+  padding: 32rpx; animation: fadeInScale 0.25s $ease-out-quart;
 }
 .picker-year-row {
   display: flex; align-items: center; justify-content: center; gap: 40rpx;
@@ -563,6 +571,7 @@ onShow(() => {
   width: 48rpx; height: 48rpx; border-radius: 50%;
   background: $border-light; display: flex; align-items: center; justify-content: center;
   font-size: 32rpx; color: $text-secondary; font-weight: 700;
+  transition: background 0.15s;
   &:active { background: $border; }
 }
 .picker-year { font-size: 32rpx; font-weight: 700; color: $text; }
@@ -570,9 +579,10 @@ onShow(() => {
 .picker-month {
   text-align: center; padding: $space-md 0; border-radius: $radius-sm;
   background: $border-light; font-size: 26rpx; color: $text-secondary;
-  &:active { background: $border; }
+  transition: all 0.2s $ease-out-quart;
+  &:active { background: $border; transform: scale(0.95); }
 }
-.picker-month.on { @include btn-primary; }
+.picker-month.on { @include btn-primary; box-shadow: $shadow-button; }
 
 /* ---- 星期行 ---- */
 .cal-week { display: flex; padding: 0 4rpx; margin-bottom: $space-xs; }
@@ -581,26 +591,36 @@ onShow(() => {
 /* ---- 日历格子 ---- */
 .cal-grid {
   display: flex; flex-wrap: wrap; padding: 0 4rpx;
-  @include glass-card;
+  @include glass-card-glow;
   margin-bottom: $space-lg;
 }
 .cal-cell {
   width: calc(100% / 7); aspect-ratio: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   position: relative;
+  transition: background 0.2s;
 }
 .cal-day-num { font-size: 26rpx; color: $text; font-weight: 500; }
 .cal-cell.empty { pointer-events: none; }
 .cal-cell.today .cal-day-num {
-  color: $white; background: $primary; border-radius: 50%;
-  width: 44rpx; height: 44rpx; line-height: 44rpx; text-align: center;
+  color: $white;
+  background: linear-gradient(135deg, $primary, $accent);
+  border-radius: 50%;
+  width: 46rpx; height: 46rpx; line-height: 46rpx; text-align: center;
+  box-shadow: 0 2rpx 8rpx rgba(255, 184, 0, 0.2);
 }
-.cal-cell.selected { background: rgba(255,184,0,0.08); border-radius: $radius-md; }
-.cal-dot { width: 8rpx; height: 8rpx; border-radius: 50%; background: $accent; margin-top: 4rpx; }
+.cal-cell.selected { background: rgba(255, 184, 0, 0.1); border-radius: $radius-md; }
+.cal-cell:active { background: rgba(255, 184, 0, 0.06); border-radius: $radius-md; }
+.cal-dot {
+  width: 8rpx; height: 8rpx; border-radius: 50%;
+  background: $accent;
+  margin-top: 4rpx;
+  box-shadow: 0 0 4rpx rgba(255, 152, 0, 0.3);
+}
 
 /* ---- 当天记录区 ---- */
 .day-section {
-  @include glass-card;
+  @include glass-card-glow;
   padding: $space-lg;
 }
 .day-header {
@@ -610,7 +630,7 @@ onShow(() => {
 .day-title { font-size: 28rpx; font-weight: 700; color: $text; }
 .day-add {
   padding: 8rpx $space-lg; border-radius: 24rpx;
-  @include btn-primary;
+  @include btn-glow;
   &:active { transform: scale(0.95); }
 }
 .day-add-t { font-size: $text-xs; color: $white; font-weight: 700; }
@@ -621,10 +641,12 @@ onShow(() => {
 /* ---- 记录卡片 ---- */
 .entry-list { display: flex; flex-direction: column; gap: $space-sm; }
 .entry-card {
-  background: rgba(255,255,255,0.6); border-radius: $radius-md;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: $radius-md;
   padding: $space-md $space-lg;
-  border: 1rpx solid rgba(0,0,0,0.04);
-  &:active { transform: scale(0.98); }
+  border: 1rpx solid rgba(255, 215, 0, 0.06);
+  transition: transform 0.15s $ease-out-quart, box-shadow 0.15s $ease-out-quart;
+  &:active { transform: scale(0.97); box-shadow: $shadow-card; }
 }
 .entry-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8rpx; }
 .entry-meta { display: flex; align-items: center; gap: $space-sm; }
@@ -644,7 +666,7 @@ onShow(() => {
   border-bottom: 1rpx solid $border;
 }
 .modal-title { font-size: 32rpx; font-weight: 700; color: $text; }
-.modal-close { font-size: 32rpx; color: $text-muted; padding: 8rpx; }
+.modal-close { font-size: 32rpx; color: $text-muted; padding: 8rpx; transition: transform 0.15s; &:active { transform: scale(1.2); } }
 .modal-body { padding: $space-lg 32rpx; }
 .modal-footer {
   display: flex; gap: $space-md; padding: $space-md 32rpx 32rpx;
@@ -654,8 +676,9 @@ onShow(() => {
 .modal-btn {
   flex: 1; text-align: center; padding: $space-lg 0;
   border-radius: $radius-md; font-size: 28rpx; font-weight: 600;
+  transition: all 0.15s;
 }
-.modal-btn.cancel { background: $border-light; color: $text-secondary; }
+.modal-btn.cancel { background: $border-light; color: $text-secondary; &:active { background: $border; } }
 .modal-btn.save { @include btn-primary; }
 .modal-btn.off { opacity: 0.5; pointer-events: none; }
 
@@ -665,6 +688,8 @@ onShow(() => {
   border: 2rpx solid $border; border-radius: $radius-md;
   background: $surface; font-size: 28rpx; color: $text;
   box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  &:focus { border-color: $primary; box-shadow: 0 0 0 4rpx rgba(255, 184, 0, 0.08); }
 }
 
 /* ---- 图片区 ---- */
@@ -674,7 +699,7 @@ onShow(() => {
 .diary-img-del {
   position: absolute; top: -12rpx; right: -12rpx;
   width: 36rpx; height: 36rpx; border-radius: 50%;
-  background: rgba(0,0,0,0.5); color: $white;
+  background: rgba(0, 0, 0, 0.5); color: $white;
   display: flex; align-items: center; justify-content: center;
   font-size: 20rpx;
 }
@@ -682,19 +707,21 @@ onShow(() => {
   width: 200rpx; height: 200rpx; border-radius: $radius-sm;
   border: 2rpx dashed $border; background: $surface;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx;
-  &:active { background: $border; }
+  transition: all 0.2s;
+  &:active { background: $border; transform: scale(0.95); }
 }
 .diary-img-add-t { font-size: 40rpx; }
 .diary-img-add-l { font-size: 20rpx; color: $text-faint; }
 
 /* ---- 梦想子Tab ---- */
-.dream-sub-tabs { @include sub-tabs; }
+.dream-sub-tabs { @include sub-tabs; padding: $space-xs; }
 .dream-sub-tab {
   flex: 1; text-align: center; padding: 18rpx 0;
   font-size: 26rpx; color: $text-muted; border-radius: $radius-md;
-  transition: all 0.2s;
+  transition: all 0.25s $ease-out-quart;
+  &:active { transform: scale(0.95); }
 }
-.dream-sub-tab.active { @include sub-tab-active; }
+.dream-sub-tab.active { @include sub-tab-active; box-shadow: 0 4rpx 12rpx rgba(255, 184, 0, 0.25); }
 
 .dream-grid { display: flex; flex-wrap: wrap; gap: $space-md; padding-bottom: 140rpx; }
 .dream-col { width: calc(50% - 8rpx); box-sizing: border-box; }
@@ -707,9 +734,10 @@ onShow(() => {
 .form-label { font-size: 28rpx; font-weight: 600; color: $text; margin-bottom: $space-sm; display: block; }
 .required { color: $primary; }
 .form-input { @include form-input; }
+.form-input:focus { border-color: $primary; box-shadow: 0 0 0 4rpx rgba(255, 184, 0, 0.1); }
 .seg-group { display: flex; gap: 8rpx; flex-wrap: wrap; }
 .seg { @include segment; }
-.seg.sel { @include segment-active; }
-.submit-btn { @include btn-primary; width: 100%; height: 88rpx; line-height: 88rpx; text-align: center; }
+.seg.sel { @include segment-active; box-shadow: 0 2rpx 6rpx rgba(255, 152, 0, 0.1); }
+.submit-btn { @include btn-glow; width: 100%; height: 88rpx; line-height: 88rpx; text-align: center; }
 .submit-btn.disabled { opacity: 0.5; pointer-events: none; }
 </style>

@@ -195,29 +195,35 @@ watch(couponTab, updateCoupons)
 <template>
   <page-layout>
     <!-- 开启通知 -->
-    <view class="sub-banner" v-if="!subscribed && !subBannerClosed" @tap="requestSubscribe">
+    <view class="sub-banner stagger-enter" v-if="!subscribed && !subBannerClosed" @tap="requestSubscribe">
+      <view class="sub-banner-glow" />
       <text class="sb-icon">🔔</text>
       <text class="sb-text">开启通知，对方用券时提醒你</text>
       <text class="sb-btn" @tap.stop="dismissSubBanner">✕</text>
     </view>
 
     <!-- 券包 -->
-    <view class="menu-card" @tap="openCoupons">
+    <view class="menu-card stagger-enter" @tap="openCoupons">
+      <view class="menu-glow-bar" />
       <view class="m-left"><text class="m-icon">🎫</text><text class="m-title">券包</text></view>
       <view class="m-right">
-        <view class="m-badge" v-if="unusedCount > 0">{{ unusedCount }}张可用</view>
+        <view class="m-badge" v-if="unusedCount > 0">
+          <text>{{ unusedCount }}张可用</text>
+        </view>
         <text class="m-arrow">›</text>
       </view>
     </view>
 
     <!-- 记账 -->
-    <view class="menu-card" @tap="goExpense">
+    <view class="menu-card stagger-enter" @tap="goExpense">
+      <view class="menu-glow-bar" />
       <view class="m-left"><text class="m-icon">💰</text><text class="m-title">记账</text></view>
       <view class="m-right"><text class="m-arrow">›</text></view>
     </view>
 
     <!-- 设置 -->
-    <view class="menu-card" @tap="onShowSettings">
+    <view class="menu-card stagger-enter" @tap="onShowSettings">
+      <view class="menu-glow-bar" />
       <view class="m-left"><text class="m-icon">⚙️</text><text class="m-title">设置</text></view>
       <view class="m-right"><text class="m-arrow">›</text></view>
     </view>
@@ -230,7 +236,7 @@ watch(couponTab, updateCoupons)
           <view class="close-btn" @tap="showCoupons = false"><text>✕</text></view>
         </view>
         <view class="coupon-tabs">
-          <view v-for="t in ['unused','used']" :key="t" class="ctab" :class="{ active:couponTab===t }" @tap="couponTab=t">
+          <view v-for="t in ['unused','used']" :key="t" class="ctab" :class="{ active: couponTab===t }" @tap="couponTab=t">
             {{ t==='unused'?'未使用':'已使用' }}
           </view>
         </view>
@@ -264,19 +270,19 @@ watch(couponTab, updateCoupons)
         </view>
         <view class="settings-body">
           <view class="set-row">
-            <text class="set-label">我们的家</text>
+            <text class="set-label">🏠 我们的家</text>
             <text class="set-val" v-if="!editingName" @tap="startEditName">{{ coupleName }} ✏️</text>
             <input v-else class="set-input" v-model="newName" @blur="saveName" maxlength="20" />
           </view>
           <view class="set-row">
-            <text class="set-label">性别</text>
+            <text class="set-label">🧑 性别</text>
             <view class="gender-btns">
               <view class="g-btn" :class="{ sel: myGender === 'male' }" @tap="setGender('male')">🧑 男</view>
               <view class="g-btn" :class="{ sel: myGender === 'female' }" @tap="setGender('female')">👩 女</view>
             </view>
           </view>
           <view class="set-row">
-            <text class="set-label">邀请码</text>
+            <text class="set-label">🔑 邀请码</text>
             <text class="invite-code" v-if="inviteCode && inviteCode !== '暂无' && inviteCode !== '获取失败'" @tap="() => { uni.setClipboardData({ data: inviteCode }); uni.showToast({ title: '已复制', icon: 'success' }) }">{{ inviteCode }} 📋</text>
             <text class="invite-code dim" v-else>{{ inviteCode || '加载中...' }}</text>
           </view>
@@ -289,68 +295,141 @@ watch(couponTab, updateCoupons)
 <style lang="scss" scoped>
 @import '@/uni.scss';
 
+/* 订阅横幅 - 增强光效 */
 .sub-banner {
-  background: linear-gradient(135deg, #FF8F00, #FFB300); border-radius: $radius-lg;
-  padding: $space-lg 24rpx; margin-bottom: $space-md; display: flex; align-items: center;
-  box-shadow: 0 6rpx 20rpx rgba(255,143,0,0.25);
+  background: linear-gradient(135deg, #FF8F00, #FFB300);
+  border-radius: $radius-lg;
+  padding: $space-lg 24rpx;
+  margin-bottom: $space-md;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 6rpx 20rpx rgba(255, 143, 0, 0.25), 0 0 30rpx rgba(255, 143, 0, 0.1);
+  position: relative;
+  overflow: hidden;
 }
-.sb-icon { font-size: 34rpx; margin-right: $space-sm; }
-.sb-text { flex: 1; font-size: $text-sm; color: $white; }
+.sub-banner-glow {
+  position: absolute;
+  inset: 0;
+  background: $gradient-shimmer;
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+.sb-icon { font-size: 34rpx; margin-right: $space-sm; position: relative; z-index: 1; }
+.sb-text { flex: 1; font-size: $text-sm; color: $white; position: relative; z-index: 1; }
 .sb-btn {
-  background: rgba(255,255,255,0.25); border-radius: 50%; width: 44rpx; height: 44rpx;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  width: 44rpx; height: 44rpx;
   display: flex; align-items: center; justify-content: center;
-  font-size: $text-sm; color: $white; font-weight: 700; flex-shrink: 0;
+  font-size: $text-sm; color: $white; font-weight: 700;
+  flex-shrink: 0; position: relative; z-index: 1;
+  transition: background 0.2s $ease-out-quart;
+  &:active { background: rgba(255, 255, 255, 0.4); }
 }
 
+/* 菜单卡片 - 增强 */
 .menu-card {
-  @include glass-card;
-  padding: 26rpx 28rpx; margin-bottom: 14rpx;
-  display: flex; align-items: center; justify-content: space-between;
-  transition: transform 0.15s;
-  &:active { transform: scale(0.98); }
+  @include glass-card-glow;
+  padding: 28rpx 30rpx;
+  margin-bottom: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s $ease-out-quart, box-shadow 0.2s $ease-out-quart;
+  &:active {
+    transform: scale(0.97);
+    box-shadow: $shadow-card;
+  }
 }
-.m-left { display: flex; align-items: center; }
+.menu-glow-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2rpx;
+  background: $gradient-gold-text;
+  opacity: 0.3;
+}
+.m-left { display: flex; align-items: center; position: relative; z-index: 1; }
 .m-icon { font-size: 32rpx; margin-right: 14rpx; }
 .m-title { font-size: 28rpx; font-weight: 600; color: $text; }
-.m-right { display: flex; align-items: center; }
-.m-badge { font-size: $text-xs; color: $primary; background: rgba(255,184,0,0.08); border-radius: $radius-md; padding: 4rpx 14rpx; margin-right: 8rpx; }
+.m-right { display: flex; align-items: center; position: relative; z-index: 1; }
+.m-badge {
+  font-size: $text-xs;
+  color: $white;
+  background: $gradient-accent;
+  border-radius: $radius-full;
+  padding: 4rpx 18rpx;
+  margin-right: 8rpx;
+  box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.3);
+}
 .m-arrow { font-size: $text-lg; color: $border; }
 
+/* 弹窗 */
 .overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4rpx);
-  z-index: 1000; display: flex; align-items: flex-end;
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4rpx);
+  -webkit-backdrop-filter: blur(4rpx);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
 }
 .panel {
-  width: 100%; max-height: 85vh; background: $white;
+  width: 100%;
+  max-height: 85vh;
+  background: $white;
   border-radius: $radius-xl $radius-xl 0 0;
-  display: flex; flex-direction: column; overflow: hidden;
-  animation: slideUp 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.35s $ease-out-quart;
 }
 .panel-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 28rpx 30rpx; border-bottom: 1rpx solid $primary-bg;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 30rpx;
+  border-bottom: 1rpx solid $primary-bg;
 }
 .panel-title { font-size: 32rpx; font-weight: 700; color: $text; }
 .close-btn {
-  width: 44rpx; height: 44rpx; border-radius: 50%; background: $primary-bg;
+  width: 44rpx; height: 44rpx; border-radius: 50%;
+  background: $primary-bg;
   display: flex; align-items: center; justify-content: center;
   font-size: 26rpx; color: $primary;
+  transition: background 0.2s $ease-out-quart;
+  &:active { background: $primary-light; }
 }
 
 .coupon-tabs { display: flex; border-bottom: 1rpx solid $primary-bg; }
-.ctab { flex: 1; text-align: center; padding: $space-lg 0; font-size: 26rpx; color: $text-muted; }
+.ctab {
+  flex: 1; text-align: center; padding: $space-lg 0;
+  font-size: 26rpx; color: $text-muted;
+  transition: color 0.2s $ease-out-quart;
+}
 .ctab.active { color: $primary; font-weight: 700; position: relative; }
 .ctab.active::after {
-  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 40rpx; height: 4rpx; background: $primary; border-radius: 2rpx;
+  content: '';
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 40rpx; height: 4rpx;
+  background: $gradient-primary;
+  border-radius: 2rpx;
 }
 .coupon-list { flex: 1; padding: $space-md 24rpx; max-height: 50vh; }
 .c-card {
-  display: flex; align-items: center; padding: 22rpx 18rpx; border-radius: 14rpx;
-  border-left: 6rpx solid $primary; background: #FFFDE7;
-  position: relative; z-index: 1; transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  padding: 22rpx 18rpx;
+  border-radius: 14rpx;
+  border-left: 6rpx solid $primary;
+  background: linear-gradient(135deg, #FFFDE7, #FFF8E1);
+  position: relative; z-index: 1;
+  transition: transform 0.2s ease, box-shadow 0.2s $ease-out-quart;
+  box-shadow: 0 2rpx 8rpx rgba(255, 184, 0, 0.06);
 }
-.c-card.used { border-left-color: $text-faint; background: #F7F7F7; }
+.c-card:active { box-shadow: 0 2rpx 4rpx rgba(255, 184, 0, 0.04); }
+.c-card.used { border-left-color: $text-faint; background: linear-gradient(135deg, #F7F7F7, #FAFAFA); }
 .c-card.expired { border-left-color: $border; background: $border-light; }
 .c-left { margin-right: 14rpx; }
 .c-icon { font-size: $text-lg; }
@@ -358,8 +437,16 @@ watch(couponTab, updateCoupons)
 .c-name { font-size: 26rpx; font-weight: 600; color: $text; display: block; }
 .c-date { font-size: $text-xs; color: $text-faint; margin-top: 4rpx; }
 .use-btn {
-  padding: 10rpx 24rpx; border-radius: $space-lg;
-  background: $gradient-primary; font-size: $text-xs; font-weight: 700; color: $white; flex-shrink: 0;
+  padding: 10rpx 24rpx;
+  border-radius: $space-lg;
+  background: $gradient-primary;
+  font-size: $text-xs;
+  font-weight: 700;
+  color: $white;
+  flex-shrink: 0;
+  box-shadow: 0 2rpx 8rpx rgba(255, 184, 0, 0.2);
+  transition: transform 0.15s $ease-out-quart;
+  &:active { transform: scale(0.92); }
 }
 
 .coupon-card-wrap { position: relative; overflow: hidden; border-radius: 14rpx; margin-bottom: 14rpx; }
@@ -372,16 +459,30 @@ watch(couponTab, updateCoupons)
 .coupon-del-btn .del-text { color: $white; font-size: 26rpx; font-weight: 700; }
 
 .settings-body { padding: $space-lg 28rpx; }
-.set-row { padding: $space-lg 0; border-bottom: 1rpx solid $border-light; }
+.set-row {
+  padding: $space-lg 0;
+  border-bottom: 1rpx solid $border-light;
+}
+.set-row:last-child { border-bottom: none; }
 .set-label { font-size: 28rpx; font-weight: 600; color: $text; display: block; margin-bottom: 14rpx; }
 .set-val { font-size: 26rpx; color: $primary; }
-.invite-code { font-size: 32rpx; font-weight: 800; color: $primary; letter-spacing: 4rpx; }
-.invite-code.dim { color: $text-faint; font-weight: 400; letter-spacing: 0; }
-.set-input { font-size: 26rpx; border: 2rpx solid $primary-light; border-radius: $radius-sm; padding: $space-sm $space-md; }
+.invite-code { font-size: 32rpx; font-weight: 800; @include text-glow($primary); letter-spacing: 4rpx; }
+.invite-code.dim { color: $text-faint; font-weight: 400; letter-spacing: 0; text-shadow: none; }
+.set-input { font-size: 26rpx; border: 2rpx solid $primary-light; border-radius: $radius-sm; padding: $space-sm $space-md; transition: border-color 0.2s; }
+.set-input:focus { border-color: $primary; box-shadow: 0 0 0 4rpx rgba(255, 184, 0, 0.1); }
 .gender-btns { display: flex; gap: $space-md; }
 .g-btn {
   flex: 1; text-align: center; padding: $space-md; border-radius: $radius-md;
-  font-size: 26rpx; color: $text-muted; border: 2rpx solid $border; background: $surface;
+  font-size: 26rpx; color: $text-muted;
+  border: 2rpx solid $border; background: $surface;
+  transition: all 0.2s $ease-out-quart;
+  &:active { transform: scale(0.95); }
 }
-.g-btn.sel { color: $accent; border-color: $accent; background: #FFF3E0; font-weight: 700; }
+.g-btn.sel {
+  color: $accent;
+  border-color: $accent;
+  background: #FFF3E0;
+  font-weight: 700;
+  box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.15);
+}
 </style>
